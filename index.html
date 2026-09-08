@@ -8,17 +8,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg: #12141C;
-    --panel: #191C27;
-    --panel-raised: #20232F;
-    --border: #2B2F3D;
-    --text: #EDEEF2;
-    --text-muted: #8891A8;
-    --accent: #FFB648;
-    --accent-dim: rgba(255,182,72,0.14);
-    --user-msg: #232838;
-    --danger: #E06456;
-    --ok: #6FCF97;
+    --bg: #F5F6F8;
+    --panel: #FFFFFF;
+    --panel-raised: #F0F2F5;
+    --border: #E3E6EB;
+    --text: #1A1D23;
+    --text-muted: #6B7280;
+    --accent: #2F6FED;
+    --accent-dim: #EAF1FF;
+    --user-msg: #F0F2F5;
+    --danger: #DC2626;
+    --ok: #16A34A;
+    --busy: #F59E0B;
     --radius: 10px;
     --font-display: 'Space Grotesk', sans-serif;
     --font-body: 'Inter', sans-serif;
@@ -68,7 +69,7 @@
     font-family:var(--font-body); font-size:12px; font-weight:500;
     padding:6px 8px; border-radius:999px; cursor:pointer; transition:all .15s ease;
   }
-  .mode-switch button.active{ background:var(--accent); color:#1a1408; }
+  .mode-switch button.active{ background:var(--accent); color:#FFFFFF; }
 
   .client-picker{
     margin:10px 18px 6px; display:none;
@@ -91,7 +92,7 @@
     border:1px solid transparent;
   }
   .agent-item:hover{ background:var(--panel-raised); }
-  .agent-item.active{ background:var(--accent-dim); border-color:rgba(255,182,72,0.35); }
+  .agent-item.active{ background:var(--accent-dim); border-color:rgba(47,111,237,0.35); }
   .agent-dot{
     width:8px; height:8px; border-radius:50%; margin-top:6px; flex-shrink:0;
     background:var(--ok); box-shadow:0 0 0 3px rgba(111,207,151,0.15);
@@ -140,9 +141,9 @@
     border-left:2px solid transparent;
   }
   .msg.agent .bubble{ background:var(--panel); border-left-color:var(--accent); border-top-right-radius:2px; }
-  .msg.user .bubble{ background:var(--user-msg); border-right:2px solid #4C566A; border-top-left-radius:2px; }
+  .msg.user .bubble{ background:var(--user-msg); border-right:2px solid #C7CCD4; border-top-left-radius:2px; }
   .msg.system .bubble{ background:transparent; color:var(--text-muted); font-style:italic; font-size:12.5px; padding:2px 0; border:none;}
-  .msg.error .bubble{ background:rgba(224,100,86,0.1); border-left-color:var(--danger); color:#F0B4AC; }
+  .msg.error .bubble{ background:#FEF2F2; border-left-color:var(--danger); color:#991B1B; }
 
   .typing{ display:flex; gap:4px; align-items:center; padding:6px 2px; }
   .typing span{
@@ -154,10 +155,41 @@
   @keyframes blink{ 0%,80%,100%{opacity:.25;} 40%{opacity:1;} }
 
   .empty-state{
-    margin:auto; text-align:center; color:var(--text-muted); max-width:360px;
+    margin:auto; width:100%; color:var(--text-muted);
   }
+  .empty-state.simple{ max-width:360px; text-align:center; }
   .empty-state h2{ font-family:var(--font-display); color:var(--text); font-size:16px; margin:0 0 6px; }
   .empty-state p{ font-size:13px; line-height:1.5; margin:0; }
+
+  .dashboard{ width:100%; max-width:1080px; margin:0 auto; text-align:left; }
+  .dashboard h2{ font-family:var(--font-display); font-size:19px; margin:0 0 4px; color:var(--text); }
+  .dashboard .sub{ color:var(--text-muted); font-size:13px; margin:0 0 22px; }
+
+  .kpi-row{ display:flex; gap:14px; margin-bottom:26px; flex-wrap:wrap; }
+  .kpi-card{ flex:1; min-width:150px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+  .kpi-card .value{ font-size:24px; font-weight:700; font-family:var(--font-display); color:var(--text); }
+  .kpi-card .label{ font-size:11.5px; color:var(--text-muted); margin-top:3px; }
+
+  .agent-cards-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:14px; }
+  .agent-card{ background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px; }
+  .agent-card-head{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .agent-avatar{ width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+  .agent-card-name{ font-weight:600; font-size:13.5px; color:var(--text); line-height:1.3; }
+  .agent-card-status{ font-size:10.5px; display:flex; align-items:center; gap:5px; color:var(--text-muted); margin-top:2px; }
+  .agent-card-status .dot{ width:6px; height:6px; border-radius:50%; }
+  .agent-metrics-row{ display:flex; justify-content:space-between; margin:12px 0; padding:10px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+  .agent-metric{ text-align:center; flex:1; }
+  .agent-metric .val{ font-weight:700; font-size:14px; color:var(--text); }
+  .agent-metric .lbl{ font-size:9.5px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.3px; margin-top:1px; }
+  .agent-goal-row{ display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); margin-bottom:5px; }
+  .agent-goal-bar{ height:6px; background:var(--panel-raised); border-radius:999px; overflow:hidden; margin-bottom:14px; }
+  .agent-goal-bar-fill{ height:100%; background:var(--accent); }
+  .agent-card .discuter-btn{
+    width:100%; background:var(--accent); color:#fff; border:none; padding:9px;
+    border-radius:8px; font-weight:600; font-size:12.5px; cursor:pointer; font-family:var(--font-body);
+  }
+  .agent-card .discuter-btn:hover{ opacity:0.9; }
+  .estimate-note{ font-size:9px; color:var(--text-muted); text-align:center; margin-top:2px; }
 
   .composer{
     border-top:1px solid var(--border); padding:14px 26px 18px;
@@ -170,7 +202,7 @@
   }
   .composer textarea::placeholder{ color:var(--text-muted); }
   .send-btn{
-    background:var(--accent); color:#1a1408; border:none; border-radius:var(--radius);
+    background:var(--accent); color:#FFFFFF; border:none; border-radius:var(--radius);
     padding:11px 16px; font-family:var(--font-body); font-weight:600; font-size:13.5px;
     cursor:pointer; flex-shrink:0;
   }
@@ -213,8 +245,8 @@
     border-radius:7px; width:30px; height:30px; font-size:14px; cursor:pointer;
     display:flex; align-items:center; justify-content:center; flex-shrink:0;
   }
-  .artifact-header-actions button:hover{ background:var(--accent-dim); border-color:rgba(255,182,72,0.35); }
-  #publishArtifact{ background:var(--accent); color:#1a1408; border:none; }
+  .artifact-header-actions button:hover{ background:var(--accent-dim); border-color:rgba(47,111,237,0.35); }
+  #publishArtifact{ background:var(--accent); color:#FFFFFF; border:none; }
   #closeArtifact{ background:none; border:none; color:var(--text-muted); font-size:15px; }
   #closeArtifact:hover{ color:var(--text); background:none; border:none; }
   .artifact-frame{ flex:1; border:none; background:#fff; width:100%; }
@@ -224,7 +256,16 @@
     background:var(--panel-raised); border:1px solid var(--border); color:var(--text);
     border-radius:8px; padding:7px 12px; font-size:12.5px; cursor:pointer; font-family:var(--font-body);
   }
-  .artifact-open-btn:hover{ background:var(--accent-dim); border-color:rgba(255,182,72,0.35); }
+  .artifact-open-btn:hover{ background:var(--accent-dim); border-color:rgba(47,111,237,0.35); }
+
+  .rate-row{ display:flex; gap:4px; margin-top:4px; }
+  .rate-btn{
+    background:none; border:1px solid var(--border); border-radius:6px; font-size:12px;
+    padding:2px 7px; cursor:pointer; color:var(--text-muted); line-height:1.4;
+  }
+  .rate-btn:hover{ background:var(--panel-raised); }
+  .rate-btn.selected-up{ background:#ECFDF5; border-color:#16A34A; color:#15803D; }
+  .rate-btn.selected-down{ background:#FEF2F2; border-color:#DC2626; color:#B91C1C; }
 
   @media (max-width: 900px){
     .artifact-panel.open{ width:100%; position:fixed; inset:0; z-index:25; }
@@ -250,7 +291,7 @@
   }
   .drawer-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
   .btn-ghost{ background:none; border:1px solid var(--border); color:var(--text); border-radius:8px; padding:9px 14px; cursor:pointer; font-size:13px; }
-  .btn-primary{ background:var(--accent); border:none; color:#1a1408; font-weight:600; border-radius:8px; padding:9px 16px; cursor:pointer; font-size:13px; }
+  .btn-primary{ background:var(--accent); border:none; color:#FFFFFF; font-weight:600; border-radius:8px; padding:9px 16px; cursor:pointer; font-size:13px; }
 
   .sidebar-foot{ flex-wrap:wrap; gap:8px; }
   #adminBtn{ display:none; }
@@ -266,7 +307,7 @@
     border-radius:7px; padding:7px 9px; font-family:var(--font-body); font-size:12.5px;
   }
   .admin-form button{
-    background:var(--accent); color:#1a1408; border:none; border-radius:7px;
+    background:var(--accent); color:#FFFFFF; border:none; border-radius:7px;
     padding:7px 10px; font-weight:600; font-size:12.5px; cursor:pointer; margin-top:2px;
   }
   .admin-list{ max-height:260px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
@@ -333,8 +374,7 @@
 
     <div class="chat-scroll" id="chatScroll">
       <div class="empty-state" id="emptyState">
-        <h2>Aucun agent sélectionné</h2>
-        <p>Choisis un agent dans la liste à gauche pour ouvrir la conversation. L'historique et la mémoire RAG sont gérés côté n8n / Supabase pour chaque client.</p>
+        <div class="dashboard" id="dashboardContent"></div>
       </div>
     </div>
 
@@ -725,6 +765,7 @@
     if (!state.config.chatUrl){
       state.agentsLoaded = true;
       renderAgentList();
+      renderDashboard();
       return;
     }
     try{
@@ -740,6 +781,112 @@
     }
     state.agentsLoaded = true;
     renderAgentList();
+    renderDashboard();
+  }
+
+  const AVATAR_STYLES = [
+    { emoji:'✍️', bg:'#FEE4E2' }, { emoji:'🎨', bg:'#E0F2FE' }, { emoji:'💼', bg:'#DCFCE7' },
+    { emoji:'🎯', bg:'#F3E8FF' }, { emoji:'📣', bg:'#FEF3C7' }, { emoji:'🤖', bg:'#E0E7FF' }
+  ];
+  function avatarFor(id){
+    let hash = 0;
+    for (let i=0;i<id.length;i++){ hash = (hash * 31 + id.charCodeAt(i)) >>> 0; }
+    return AVATAR_STYLES[hash % AVATAR_STYLES.length];
+  }
+
+  async function renderDashboard(){
+    const box = el('dashboardContent');
+    if (!box) return;
+
+    if (state.mode !== 'agency'){
+      // Vue client : dashboard simple, sans métriques internes
+      if (state.agents.length === 0){
+        box.innerHTML = `<h2>Aucun agent disponible</h2><p style="color:var(--text-muted); font-size:13px;">Ce client n'a pas encore d'agent assigné.</p>`;
+        return;
+      }
+      box.innerHTML = `
+        <h2>Vos agents</h2>
+        <p class="sub">Choisis un agent pour démarrer une conversation.</p>
+        <div class="agent-cards-grid" id="clientAgentCards"></div>`;
+      const grid = el('clientAgentCards');
+      state.agents.forEach(agent => {
+        const av = avatarFor(agent.id);
+        const card = document.createElement('div');
+        card.className = 'agent-card';
+        card.innerHTML = `
+          <div class="agent-card-head">
+            <div class="agent-avatar" style="background:${av.bg}">${av.emoji}</div>
+            <div>
+              <div class="agent-card-name">${escapeHtml(agent.name)}</div>
+            </div>
+          </div>
+          <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px; line-height:1.4;">${escapeHtml(agent.desc || '')}</p>
+          <button class="discuter-btn" type="button">💬 Discuter</button>`;
+        card.querySelector('.discuter-btn').addEventListener('click', () => selectAgent(agent.id));
+        grid.appendChild(card);
+      });
+      return;
+    }
+
+    // Vue agence : tableau de bord avec vraies métriques
+    box.innerHTML = `<p style="color:var(--text-muted); font-size:13px;">Chargement du tableau de bord…</p>`;
+    if (!state.config.adminUrl){
+      box.innerHTML = `<h2>Tableau de bord</h2><p style="color:var(--text-muted); font-size:13px;">Renseigne l'URL webhook admin dans ⚙ Configuration pour voir les statistiques réelles des agents.</p>`;
+      return;
+    }
+    try{
+      const data = await adminFetch('get_agent_stats');
+      const stats = data.stats || [];
+      const totalAgents = stats.length;
+      const tasksToday = stats.reduce((sum,s) => sum + (s.tasks_today||0), 0);
+      const withQuality = stats.filter(s => s.quality_pct !== null);
+      const avgQuality = withQuality.length ? Math.round(withQuality.reduce((s,a)=>s+a.quality_pct,0)/withQuality.length) + '%' : '—';
+      const totalHoursSaved = Math.round(stats.reduce((sum,s) => sum + (s.hours_saved_estimate||0), 0) * 10) / 10;
+
+      box.innerHTML = `
+        <h2>Vos agents compagnons</h2>
+        <p class="sub">${totalAgents} agent${totalAgents>1?'s':''} actif${totalAgents>1?'s':''} · Système opérationnel ✅</p>
+        <div class="kpi-row">
+          <div class="kpi-card"><div class="value">${totalAgents}</div><div class="label">Agents actifs</div></div>
+          <div class="kpi-card"><div class="value">${tasksToday}</div><div class="label">Messages traités aujourd'hui</div></div>
+          <div class="kpi-card"><div class="value">${avgQuality}</div><div class="label">Qualité moyenne (notée par les clients)</div></div>
+          <div class="kpi-card"><div class="value">${totalHoursSaved}h</div><div class="label">Temps économisé (estimation)</div></div>
+        </div>
+        <div class="agent-cards-grid" id="agencyAgentCards"></div>`;
+
+      const grid = el('agencyAgentCards');
+      stats.forEach(agent => {
+        const av = avatarFor(agent.agent_id);
+        const card = document.createElement('div');
+        card.className = 'agent-card';
+        card.innerHTML = `
+          <div class="agent-card-head">
+            <div class="agent-avatar" style="background:${av.bg}">${av.emoji}</div>
+            <div>
+              <div class="agent-card-name">${escapeHtml(agent.name)}</div>
+              <div class="agent-card-status"><span class="dot" style="background:var(--ok)"></span>En ligne</div>
+            </div>
+          </div>
+          <div class="agent-metrics-row">
+            <div class="agent-metric"><div class="val">${agent.tasks_total}</div><div class="lbl">Tâches</div></div>
+            <div class="agent-metric"><div class="val">${agent.quality_pct !== null ? agent.quality_pct + '%' : '—'}</div><div class="lbl">Qualité</div></div>
+            <div class="agent-metric"><div class="val">${agent.hours_saved_estimate}h</div><div class="lbl">Économisé*</div></div>
+          </div>
+          <div class="agent-goal-row"><span>Objectif hebdo</span><span>${agent.tasks_this_week}/${agent.weekly_goal}</span></div>
+          <div class="agent-goal-bar"><div class="agent-goal-bar-fill" style="width:${agent.weekly_goal_pct}%"></div></div>
+          <button class="discuter-btn" type="button">💬 Discuter</button>`;
+        card.querySelector('.discuter-btn').addEventListener('click', () => selectAgent(agent.external_ref));
+        grid.appendChild(card);
+      });
+      const note = document.createElement('p');
+      note.className = 'estimate-note';
+      note.style.textAlign = 'left';
+      note.style.marginTop = '14px';
+      note.textContent = '* Temps économisé : estimation paramétrable par agent, pas une mesure réelle.';
+      box.appendChild(note);
+    }catch(e){
+      box.innerHTML = `<h2>Tableau de bord</h2><p style="color:var(--text-muted); font-size:13px;">Erreur de chargement : ${escapeHtml(e.message)}</p>`;
+    }
   }
 
   function escapeHtml(str){
@@ -751,9 +898,11 @@
   async function selectAgent(agentId){
     state.currentAgentId = agentId;
     const agent = state.agents.find(a => a.id === agentId);
+    const agentDisplayName = (agent && agent.name) || agentId;
     renderAgentList();
+    renderDashboard();
 
-    el('agentTitle').textContent = agent.name;
+    el('agentTitle').textContent = agentDisplayName;
     el('agentCtx').textContent = state.config.clientName + ' · ' + state.config.clientId;
     messageInput.disabled = false;
     sendBtn.disabled = false;
@@ -784,7 +933,7 @@
         }
       }
       if (session.messages.length === 0){
-        session.messages.push({role:'system', content:"Nouvelle conversation avec " + agent.name + "."});
+        session.messages.push({role:'system', content:"Nouvelle conversation avec " + agentDisplayName + "."});
       }
     }
     renderMessages();
@@ -796,7 +945,7 @@
     if (!state.currentAgentId) return;
 
     const session = getSession(state.currentAgentId);
-    session.messages.forEach(m => appendMessageEl(m.role, m.content));
+    session.messages.forEach(m => appendMessageEl(m.role, m.content, m.id));
     chatScroll.scrollTop = chatScroll.scrollHeight;
   }
 
@@ -812,7 +961,22 @@
     el('artifactPanel').classList.add('open');
   }
 
-  function appendMessageEl(role, content){
+  async function rateMessage(messageId, rating, wrapEl){
+    if (!messageId || !state.config.chatUrl) return;
+    try{
+      await fetch(state.config.chatUrl, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'rate_message', client_id: state.config.clientId, agent_id: state.currentAgentId, message_id: messageId, rating })
+      });
+      const upBtn = wrapEl.querySelector('[data-rate="up"]');
+      const downBtn = wrapEl.querySelector('[data-rate="down"]');
+      upBtn.classList.toggle('selected-up', rating === 'up');
+      downBtn.classList.toggle('selected-down', rating === 'down');
+    }catch(e){ /* échec silencieux, pas critique pour l'usage du chat */ }
+  }
+
+  function appendMessageEl(role, content, messageId){
     const wrap = document.createElement('div');
     wrap.className = 'msg ' + role;
     const roleLabel = { user:'Toi', agent: (state.agents.find(a=>a.id===state.currentAgentId)||{}).name || 'Agent', system:'Système', error:'Erreur' }[role] || role;
@@ -830,6 +994,15 @@
       ? `<div class="bubble">${escapeHtml(content)}</div>`
       : `<span class="role">${escapeHtml(roleLabel)}</span><div class="bubble"></div>`;
     if (role !== 'system') wrap.querySelector('.bubble').textContent = displayContent;
+
+    if (role === 'agent' && messageId){
+      const rateRow = document.createElement('div');
+      rateRow.className = 'rate-row';
+      rateRow.innerHTML = `<button type="button" class="rate-btn" data-rate="up" title="Bonne réponse">👍</button><button type="button" class="rate-btn" data-rate="down" title="Réponse à améliorer">👎</button>`;
+      rateRow.querySelector('[data-rate="up"]').addEventListener('click', () => rateMessage(messageId, 'up', wrap));
+      rateRow.querySelector('[data-rate="down"]').addEventListener('click', () => rateMessage(messageId, 'down', wrap));
+      wrap.appendChild(rateRow);
+    }
 
     if (artifact){
       const btn = document.createElement('button');
@@ -901,8 +1074,8 @@
       const data = await res.json();
       const reply = data.reply || data.output || data.message || "(réponse vide de l'agent)";
       hideTyping();
-      session.messages.push({role:'agent', content: reply});
-      appendMessageEl('agent', reply);
+      session.messages.push({role:'agent', content: reply, id: data.message_id});
+      appendMessageEl('agent', reply, data.message_id);
     }catch(err){
       hideTyping();
       const errMsg = "Impossible de joindre l'agent (" + err.message + "). Vérifie l'URL du webhook et que le workflow n8n est actif.";
@@ -991,6 +1164,7 @@
     el('modeClientBtn').classList.add('active');
     el('modeAgencyBtn').classList.remove('active');
     renderHeader();
+    if (!state.currentAgentId) renderDashboard();
   });
   el('modeAgencyBtn').addEventListener('click', () => {
     state.mode = 'agency';
@@ -998,6 +1172,7 @@
     el('modeClientBtn').classList.remove('active');
     renderHeader();
     renderClientSelect();
+    if (!state.currentAgentId) renderDashboard();
   });
   el('clientSelect').addEventListener('change', (e) => {
     const c = state.clients.find(c => c.id === e.target.value);
