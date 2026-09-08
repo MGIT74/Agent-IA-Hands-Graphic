@@ -301,8 +301,8 @@
       <input id="cfgChatUrl" placeholder="https://ton-n8n.exemple.com/webhook/agent-chat">
     </div>
     <div class="field">
-      <label>URL webhook n8n — historique (optionnel)</label>
-      <input id="cfgHistUrl" placeholder="https://ton-n8n.exemple.com/webhook/agent-history">
+      <label>URL webhook n8n — historique (optionnel, réutilise l'URL de chat si vide)</label>
+      <input id="cfgHistUrl" placeholder="Laisse vide pour réutiliser l'URL de chat ci-dessus">
     </div>
     <div class="field">
       <label>Client ID</label>
@@ -606,9 +606,10 @@
 
     if (!session.loaded){
       session.loaded = true;
-      if (state.config.histUrl){
+      const historyUrl = state.config.histUrl || state.config.chatUrl;
+      if (historyUrl){
         try{
-          const res = await fetch(state.config.histUrl, {
+          const res = await fetch(historyUrl, {
             method:'POST',
             headers:{'Content-Type':'application/json'},
             body: JSON.stringify({
