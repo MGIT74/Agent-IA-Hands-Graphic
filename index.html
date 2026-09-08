@@ -206,19 +206,18 @@
     display:flex; align-items:center; justify-content:space-between;
     padding:12px 16px; border-bottom:1px solid var(--border); flex-shrink:0;
   }
-  .artifact-title{ font-family:var(--font-mono); font-size:12.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  #closeArtifact{ background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; flex-shrink:0; }
-  #closeArtifact:hover{ color:var(--text); }
+  .artifact-title{ font-family:var(--font-mono); font-size:12.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0; }
+  .artifact-header-actions{ display:flex; align-items:center; gap:6px; flex-shrink:0; }
+  .artifact-header-actions button{
+    background:var(--panel-raised); border:1px solid var(--border); color:var(--text);
+    border-radius:7px; width:30px; height:30px; font-size:14px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .artifact-header-actions button:hover{ background:var(--accent-dim); border-color:rgba(255,182,72,0.35); }
+  #publishArtifact{ background:var(--accent); color:#1a1408; border:none; }
+  #closeArtifact{ background:none; border:none; color:var(--text-muted); font-size:15px; }
+  #closeArtifact:hover{ color:var(--text); background:none; border:none; }
   .artifact-frame{ flex:1; border:none; background:#fff; width:100%; }
-  .artifact-actions{
-    display:flex; gap:10px; padding:12px 16px; border-top:1px solid var(--border); flex-shrink:0;
-  }
-  .artifact-actions button{
-    flex:1; background:var(--panel-raised); border:1px solid var(--border); color:var(--text);
-    border-radius:8px; padding:9px 10px; font-size:13px; cursor:pointer; font-family:var(--font-body);
-  }
-  .artifact-actions button:hover{ background:var(--accent-dim); border-color:rgba(255,182,72,0.35); }
-  #publishArtifact{ background:var(--accent); color:#1a1408; font-weight:600; border:none; }
 
   .artifact-open-btn{
     display:inline-flex; align-items:center; gap:6px; margin-top:8px;
@@ -351,13 +350,14 @@
   <aside class="artifact-panel" id="artifactPanel">
     <div class="artifact-header">
       <span class="artifact-title" id="artifactTitle">📄 site.html</span>
-      <button type="button" id="closeArtifact" title="Fermer">✕</button>
+      <div class="artifact-header-actions">
+        <button type="button" id="downloadArtifact" title="Télécharger">⬇</button>
+        <button type="button" id="openInBrowserArtifact" title="Ouvrir dans un navigateur">↗</button>
+        <button type="button" id="publishArtifact" title="Publier">🚀</button>
+        <button type="button" id="closeArtifact" title="Fermer">✕</button>
+      </div>
     </div>
     <iframe class="artifact-frame" id="artifactFrame" sandbox="allow-scripts allow-popups allow-forms"></iframe>
-    <div class="artifact-actions">
-      <button type="button" id="downloadArtifact">⬇ Télécharger</button>
-      <button type="button" id="publishArtifact">🚀 Publier</button>
-    </div>
   </aside>
 </div>
 
@@ -1068,6 +1068,15 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  });
+
+  el('openInBrowserArtifact').addEventListener('click', () => {
+    if (!state.lastArtifactHtml) return;
+    const blob = new Blob([state.lastArtifactHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    // on garde l'URL vivante un moment pour laisser le nouvel onglet charger
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
   });
 
   el('publishArtifact').addEventListener('click', async () => {
