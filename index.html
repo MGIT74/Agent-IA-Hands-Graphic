@@ -422,9 +422,32 @@
     });
   }
 
+  const SESSIONS_STORAGE_KEY = 'agent_console_sessions_v1';
+  function loadStoredSessionIds(){
+    try{
+      const raw = localStorage.getItem(SESSIONS_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    }catch(e){ return {}; }
+  }
+  function saveStoredSessionIds(map){
+    try{ localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(map)); }catch(e){ /* ignore */ }
+  }
+  let storedSessionIds = loadStoredSessionIds();
+
+  function sessionMapKey(agentId){
+    return state.config.clientId + '::' + agentId;
+  }
+
   function getSession(agentId){
     if (!state.sessions[agentId]){
-      state.sessions[agentId] = { sessionId: uuid(), messages: [], loaded:false };
+      const key = sessionMapKey(agentId);
+      const existingId = storedSessionIds[key];
+      const sessionId = existingId || uuid();
+      if (!existingId){
+        storedSessionIds[key] = sessionId;
+        saveStoredSessionIds(storedSessionIds);
+      }
+      state.sessions[agentId] = { sessionId: sessionId, messages: [], loaded:false };
     }
     return state.sessions[agentId];
   }
