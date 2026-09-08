@@ -371,15 +371,27 @@
 
   // ---- état en mémoire (pas de localStorage, reset au reload volontairement :
   // la vraie persistance vit côté n8n/Supabase) ----
+  const STORAGE_KEY = 'agent_console_config_v1';
+  function loadStoredConfig(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    }catch(e){ return {}; }
+  }
+  function saveStoredConfig(cfg){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg)); }catch(e){ /* stockage indisponible, on ignore silencieusement */ }
+  }
+  const stored = loadStoredConfig();
+
   const state = {
     mode: 'client', // 'client' | 'agency'
     config: {
-      chatUrl: params.get('chat_webhook') || '',
-      histUrl: params.get('hist_webhook') || '',
-      adminUrl: params.get('admin_webhook') || '',
-      adminKey: params.get('admin_key') || '',
-      clientId: params.get('client') || 'client_demo_01',
-      clientName: params.get('client_name') || 'Client démo'
+      chatUrl: params.get('chat_webhook') || stored.chatUrl || '',
+      histUrl: params.get('hist_webhook') || stored.histUrl || '',
+      adminUrl: params.get('admin_webhook') || stored.adminUrl || '',
+      adminKey: params.get('admin_key') || stored.adminKey || '',
+      clientId: params.get('client') || stored.clientId || 'client_demo_01',
+      clientName: params.get('client_name') || stored.clientName || 'Client démo'
     },
     clients: [
       { id:'client_demo_01', name:'Client démo' },
@@ -747,6 +759,7 @@
     state.config.adminKey = el('cfgAdminKey').value.trim();
     state.config.clientId = el('cfgClientId').value.trim() || state.config.clientId;
     state.config.clientName = el('cfgClientName').value.trim() || state.config.clientName;
+    saveStoredConfig(state.config);
     el('settingsOverlay').classList.remove('show');
     renderHeader();
     if (state.currentAgentId) el('agentCtx').textContent = state.config.clientName + ' · ' + state.config.clientId;
