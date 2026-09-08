@@ -176,6 +176,25 @@
   }
   .send-btn:disabled{ opacity:.45; cursor:not-allowed; }
 
+  .attach-btn{
+    background:var(--panel); border:1px solid var(--border); color:var(--text-muted);
+    border-radius:var(--radius); width:42px; height:42px; flex-shrink:0; cursor:pointer;
+    font-size:16px; display:flex; align-items:center; justify-content:center;
+  }
+  .attach-btn:hover{ color:var(--text); background:var(--panel-raised); }
+  .attach-btn:disabled{ opacity:.45; cursor:not-allowed; }
+
+  .attachment-preview{
+    margin:0 26px 8px; padding:8px 12px; background:var(--panel); border:1px solid var(--border);
+    border-radius:8px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+    font-size:12.5px; color:var(--text-muted);
+  }
+  .attachment-preview .name{ color:var(--text); font-family:var(--font-mono); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .attachment-preview button{
+    background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:14px; flex-shrink:0;
+  }
+  .attachment-preview button:hover{ color:var(--danger); }
+
   /* ===== Settings drawer ===== */
   .overlay{
     position:fixed; inset:0; background:rgba(10,11,16,0.6); display:none;
@@ -284,7 +303,10 @@
       </div>
     </div>
 
+    <div class="attachment-preview" id="attachmentPreview" style="display:none;"></div>
     <form class="composer" id="composerForm">
+      <input type="file" id="attachmentInput" accept="image/*,application/pdf,.txt,.csv,.md,.doc,.docx,.xls,.xlsx" style="display:none;">
+      <button type="button" class="attach-btn" id="attachBtn" title="Joindre un fichier" disabled>📎</button>
       <textarea id="messageInput" rows="1" placeholder="Écris un message à l'agent…" disabled></textarea>
       <button type="submit" class="send-btn" id="sendBtn" disabled>Envoyer</button>
     </form>
@@ -413,7 +435,8 @@
     agentsLoaded: false,
     currentAgentId: null,
     // par agent: { sessionId, messages: [{role, content}], loaded }
-    sessions: {}
+    sessions: {},
+    pendingAttachment: null
   };
 
   const el = (id) => document.getElementById(id);
@@ -640,6 +663,7 @@
     el('agentCtx').textContent = state.config.clientName + ' · ' + state.config.clientId;
     messageInput.disabled = false;
     sendBtn.disabled = false;
+    el('attachBtn').disabled = false;
 
     const session = getSession(agentId);
     el('sessionTag').textContent = 'session: ' + session.sessionId.slice(0,8);
@@ -712,8 +736,11 @@
   async function sendMessage(text){
     const agentId = state.currentAgentId;
     const session = getSession(agentId);
-    session.messages.push({role:'user', content:text});
-    appendMessageEl('user', text);
+    const attachment = state.pendingAttachment;
+    const displayText = attachment ? (text + (text ? '\n' : '') + '📎 ' + attachment.name) : text;
+    session.messages.push({role:'user', content:displayText});
+    appendMessageEl('user', displayText);
+    clearAttachment();
 
     if (!state.config.chatUrl){
       session.messages.push({role:'error', content:"Aucun webhook n8n configuré. Ouvre ⚙ Configuration pour renseigner l'URL du webhook de chat."});
@@ -726,16 +753,22 @@
     showTyping();
 
     try{
+      const payload = {
+        action:'chat',
+        client_id: state.config.clientId,
+        agent_id: agentId,
+        session_id: session.sessionId,
+        message: text
+      };
+      if (attachment){
+        payload.attachment_name = attachment.name;
+        payload.attachment_type = attachment.type;
+        payload.attachment_base64 = attachment.base64;
+      }
       const res = await fetch(state.config.chatUrl, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          action:'chat',
-          client_id: state.config.clientId,
-          agent_id: agentId,
-          session_id: session.sessionId,
-          message: text
-        })
+        body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
@@ -755,11 +788,61 @@
     }
   }
 
+  // ---- pièce jointe ----
+  const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024; // 4 Mo
+
+  function renderAttachmentPreview(){
+    const box = el('attachmentPreview');
+    if (!state.pendingAttachment){
+      box.style.display = 'none';
+      box.innerHTML = '';
+      return;
+    }
+    box.style.display = 'flex';
+    box.innerHTML = `<span class="name">📎 ${escapeHtml(state.pendingAttachment.name)}</span>`;
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.textContent = '✕';
+    removeBtn.addEventListener('click', clearAttachment);
+    box.appendChild(removeBtn);
+  }
+
+  function clearAttachment(){
+    state.pendingAttachment = null;
+    el('attachmentInput').value = '';
+    renderAttachmentPreview();
+  }
+
+  el('attachBtn').addEventListener('click', () => el('attachmentInput').click());
+  el('attachmentInput').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (file.type.startsWith('video/')){
+      alert("Les fichiers vidéo ne sont pas pris en charge.");
+      el('attachmentInput').value = '';
+      return;
+    }
+    if (file.size > MAX_ATTACHMENT_BYTES){
+      alert("Fichier trop volumineux (max 4 Mo).");
+      el('attachmentInput').value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result; // "data:<mime>;base64,<data>"
+      const base64 = result.split(',')[1] || '';
+      state.pendingAttachment = { name: file.name, type: file.type || 'application/octet-stream', base64: base64 };
+      renderAttachmentPreview();
+    };
+    reader.onerror = () => alert("Impossible de lire ce fichier.");
+    reader.readAsDataURL(file);
+  });
+
   // ---- events ----
   el('composerForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const text = messageInput.value.trim();
-    if (!text || !state.currentAgentId) return;
+    if ((!text && !state.pendingAttachment) || !state.currentAgentId) return;
     messageInput.value = '';
     messageInput.style.height = 'auto';
     sendMessage(text);
