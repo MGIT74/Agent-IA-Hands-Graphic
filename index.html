@@ -409,11 +409,8 @@
       { id:'client_dupont', name:'Agence Dupont' },
       { id:'client_martin_immo', name:'Martin Immobilier' }
     ],
-    agents: [
-      { id:'agent_sav', name:'Agent SAV', desc:'Répond aux demandes support et FAQ produit.', online:true },
-      { id:'agent_leads', name:'Agent Qualification Leads', desc:'Qualifie les prospects entrants et prend RDV.', online:true },
-      { id:'agent_reporting', name:'Agent Reporting', desc:'Résume les KPIs hebdo sur demande.', online:false }
-    ],
+    agents: [],
+    agentsLoaded: false,
     currentAgentId: null,
     // par agent: { sessionId, messages: [{role, content}], loaded }
     sessions: {}
@@ -550,7 +547,7 @@
           try{
             await adminFetch('update_agent_name', { agent_id: agentId, new_name: newName });
             btn.textContent = 'OK ✓';
-            renderAgentList(); // reflète le nouveau nom si l'agent est dans la liste locale (démo statique)
+            loadAgentsForClient(); // rafraîchit la liste dynamique si l'agent renommé y apparaît
           }catch(e){
             btn.textContent = 'Erreur';
           }
@@ -582,18 +579,50 @@
   function renderAgentList(){
     const list = el('agentList');
     list.innerHTML = '';
+    if (!state.agentsLoaded){
+      list.innerHTML = '<p class="admin-empty">Chargement des agents…</p>';
+      return;
+    }
+    if (state.agents.length === 0){
+      list.innerHTML = '<p class="admin-empty">Aucun agent disponible pour ce client.</p>';
+      return;
+    }
     state.agents.forEach(agent => {
       const item = document.createElement('div');
-      item.className = 'agent-item' + (agent.id === state.currentAgentId ? ' active' : '') + (agent.online ? '' : ' offline');
+      item.className = 'agent-item' + (agent.id === state.currentAgentId ? ' active' : '');
       item.innerHTML = `
         <span class="agent-dot"></span>
         <div>
           <p class="agent-name">${escapeHtml(agent.name)}</p>
-          <p class="agent-desc">${escapeHtml(agent.desc)}</p>
+          <p class="agent-desc">${escapeHtml(agent.desc || '')}</p>
         </div>`;
       item.addEventListener('click', () => selectAgent(agent.id));
       list.appendChild(item);
     });
+  }
+
+  async function loadAgentsForClient(){
+    state.agentsLoaded = false;
+    state.agents = [];
+    renderAgentList();
+    if (!state.config.chatUrl){
+      state.agentsLoaded = true;
+      renderAgentList();
+      return;
+    }
+    try{
+      const res = await fetch(state.config.chatUrl, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'list_agents', client_id: state.config.clientId })
+      });
+      const data = await res.json();
+      state.agents = (data.agents || []).map(a => ({ id: a.external_ref, name: a.name, desc: a.description }));
+    }catch(e){
+      state.agents = [];
+    }
+    state.agentsLoaded = true;
+    renderAgentList();
   }
 
   function escapeHtml(str){
@@ -774,7 +803,7 @@
     el('sessionTag').textContent = 'session: —';
     messageInput.disabled = true;
     sendBtn.disabled = true;
-    renderAgentList();
+    loadAgentsForClient();
   });
 
   // settings drawer
@@ -798,6 +827,7 @@
     el('settingsOverlay').classList.remove('show');
     renderHeader();
     if (state.currentAgentId) el('agentCtx').textContent = state.config.clientName + ' · ' + state.config.clientId;
+    loadAgentsForClient();
   });
 
   // populate admin fields when opening settings too
@@ -860,7 +890,7 @@
   // ---- init ----
   renderHeader();
   renderClientSelect();
-  renderAgentList();
+  loadAgentsForClient();
 })();
 </script>
 </body>
