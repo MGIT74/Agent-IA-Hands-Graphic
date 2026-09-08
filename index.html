@@ -256,7 +256,7 @@
   #adminBtn{ display:none; }
   #adminBtn.show{ display:flex; }
 
-  .admin-drawer{ max-width:760px; }
+  .admin-drawer{ max-width:1080px; }
   .admin-columns{ display:flex; gap:22px; margin-top:4px; }
   .admin-col{ flex:1; min-width:0; }
   .admin-col h3{ font-family:var(--font-display); font-size:13.5px; margin:0 0 10px; color:var(--text); }
@@ -437,6 +437,20 @@
           <button type="submit">Assigner cet agent</button>
         </form>
         <div class="admin-list" id="agentsAdminList"><p class="admin-empty">Chargement…</p></div>
+      </div>
+      <div class="admin-col">
+        <h3>Skills</h3>
+        <form class="admin-form" id="createSkillForm">
+          <input id="newSkillName" placeholder="Nom du skill (ex: Design landing page)" required>
+          <textarea id="newSkillContent" placeholder="Instructions expertes détaillées à injecter dans le prompt de l'agent quand ce skill est actif..." rows="4" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:7px 9px; font-family:var(--font-body); font-size:12.5px; resize:vertical;" required></textarea>
+          <button type="submit">+ Créer un skill</button>
+        </form>
+        <form class="admin-form" id="assignSkillForm">
+          <select id="assignSkillAgentSelect"></select>
+          <select id="assignSkillSelect"></select>
+          <button type="submit">Assigner ce skill</button>
+        </form>
+        <div class="admin-list" id="skillsAdminList"><p class="admin-empty">Chargement…</p></div>
       </div>
     </div>
 
@@ -631,10 +645,41 @@
     }
   }
 
+  async function loadSkillsAdmin(){
+    const list = el('skillsAdminList');
+    const agentSelect = el('assignSkillAgentSelect');
+    const skillSelect = el('assignSkillSelect');
+    try{
+      const [skillsData, agentsData] = await Promise.all([
+        adminFetch('list_skills'),
+        adminFetch('list_agents')
+      ]);
+      const skills = skillsData.skills || [];
+      const agents = agentsData.agents || [];
+
+      agentSelect.innerHTML = agents.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
+      skillSelect.innerHTML = skills.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+
+      if (skills.length === 0){ list.innerHTML = '<p class="admin-empty">Aucun skill créé pour le moment.</p>'; return; }
+      list.innerHTML = '';
+      skills.forEach(skill => {
+        const item = document.createElement('div');
+        item.className = 'admin-item';
+        item.innerHTML = `
+          <p class="title">${escapeHtml(skill.name)}</p>
+          <p class="sub">${escapeHtml(skill.slug)}</p>`;
+        list.appendChild(item);
+      });
+    }catch(e){
+      list.innerHTML = `<p class="admin-empty">Erreur : ${escapeHtml(e.message)}</p>`;
+    }
+  }
+
   function openAdmin(){
     el('adminOverlay').classList.add('show');
     loadEmployees();
     loadAgentsAdmin();
+    loadSkillsAdmin();
   }
 
   function renderClientSelect(){
@@ -1047,6 +1092,33 @@
       await adminFetch('create_agent', { agent_name, agent_description, agent_system_prompt, agent_model });
       el('newAgentName').value = ''; el('newAgentDesc').value = ''; el('newAgentPrompt').value = '';
       loadAgentsAdmin();
+    }catch(err){
+      alert("Erreur : " + err.message);
+    }
+  });
+
+  el('createSkillForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const skill_name = el('newSkillName').value.trim();
+    const skill_content = el('newSkillContent').value.trim();
+    if (!skill_name || !skill_content) return;
+    try{
+      await adminFetch('create_skill', { skill_name, skill_content });
+      el('newSkillName').value = ''; el('newSkillContent').value = '';
+      loadSkillsAdmin();
+    }catch(err){
+      alert("Erreur : " + err.message);
+    }
+  });
+
+  el('assignSkillForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const agent_id = el('assignSkillAgentSelect').value;
+    const skill_id = el('assignSkillSelect').value;
+    if (!agent_id || !skill_id) return;
+    try{
+      await adminFetch('assign_skill', { agent_id, skill_id });
+      alert("Skill assigné avec succès.");
     }catch(err){
       alert("Erreur : " + err.message);
     }
