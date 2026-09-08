@@ -350,6 +350,17 @@
 
       <div class="admin-col">
         <h3>Agents</h3>
+        <form class="admin-form" id="createAgentForm">
+          <input id="newAgentName" placeholder="Nom de l'agent" required>
+          <input id="newAgentDesc" placeholder="Description courte">
+          <textarea id="newAgentPrompt" placeholder="Prompt système (ex: Tu es l'agent facturation de {client_name}...)" rows="2" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:7px 9px; font-family:var(--font-body); font-size:12.5px; resize:vertical;"></textarea>
+          <select id="newAgentModel">
+            <option value="gpt-oss:20b-cloud">gpt-oss:20b-cloud (rapide)</option>
+            <option value="qwen3.5:cloud">qwen3.5:cloud (plus poussé)</option>
+            <option value="llama3.2">llama3.2 (self-host)</option>
+          </select>
+          <button type="submit">+ Créer un agent</button>
+        </form>
         <form class="admin-form" id="assignAgentForm">
           <select id="assignEmpSelect"></select>
           <select id="assignAgentSelect"></select>
@@ -825,6 +836,22 @@
     try{
       await adminFetch('assign_agent', { employee_id, agent_id });
       loadEmployees();
+    }catch(err){
+      alert("Erreur : " + err.message);
+    }
+  });
+
+  el('createAgentForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const agent_name = el('newAgentName').value.trim();
+    const agent_description = el('newAgentDesc').value.trim();
+    const agent_system_prompt = el('newAgentPrompt').value.trim();
+    const agent_model = el('newAgentModel').value;
+    if (!agent_name) return;
+    try{
+      await adminFetch('create_agent', { agent_name, agent_description, agent_system_prompt, agent_model });
+      el('newAgentName').value = ''; el('newAgentDesc').value = ''; el('newAgentPrompt').value = '';
+      loadAgentsAdmin();
     }catch(err){
       alert("Erreur : " + err.message);
     }
