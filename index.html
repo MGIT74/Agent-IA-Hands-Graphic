@@ -195,6 +195,42 @@
   }
   .attachment-preview button:hover{ color:var(--danger); }
 
+  /* ===== Panneau d'aperçu HTML (artefact) ===== */
+  .artifact-panel{
+    width:0; min-width:0; overflow:hidden; flex-shrink:0;
+    background:var(--panel); border-left:1px solid var(--border);
+    display:flex; flex-direction:column; transition:width .18s ease;
+  }
+  .artifact-panel.open{ width:44%; min-width:360px; }
+  .artifact-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px; border-bottom:1px solid var(--border); flex-shrink:0;
+  }
+  .artifact-title{ font-family:var(--font-mono); font-size:12.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #closeArtifact{ background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; flex-shrink:0; }
+  #closeArtifact:hover{ color:var(--text); }
+  .artifact-frame{ flex:1; border:none; background:#fff; width:100%; }
+  .artifact-actions{
+    display:flex; gap:10px; padding:12px 16px; border-top:1px solid var(--border); flex-shrink:0;
+  }
+  .artifact-actions button{
+    flex:1; background:var(--panel-raised); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:9px 10px; font-size:13px; cursor:pointer; font-family:var(--font-body);
+  }
+  .artifact-actions button:hover{ background:var(--accent-dim); border-color:rgba(255,182,72,0.35); }
+  #publishArtifact{ background:var(--accent); color:#1a1408; font-weight:600; border:none; }
+
+  .artifact-open-btn{
+    display:inline-flex; align-items:center; gap:6px; margin-top:8px;
+    background:var(--panel-raised); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:7px 12px; font-size:12.5px; cursor:pointer; font-family:var(--font-body);
+  }
+  .artifact-open-btn:hover{ background:var(--accent-dim); border-color:rgba(255,182,72,0.35); }
+
+  @media (max-width: 900px){
+    .artifact-panel.open{ width:100%; position:fixed; inset:0; z-index:25; }
+  }
+
   /* ===== Settings drawer ===== */
   .overlay{
     position:fixed; inset:0; background:rgba(10,11,16,0.6); display:none;
@@ -311,6 +347,18 @@
       <button type="submit" class="send-btn" id="sendBtn" disabled>Envoyer</button>
     </form>
   </main>
+
+  <aside class="artifact-panel" id="artifactPanel">
+    <div class="artifact-header">
+      <span class="artifact-title" id="artifactTitle">📄 site.html</span>
+      <button type="button" id="closeArtifact" title="Fermer">✕</button>
+    </div>
+    <iframe class="artifact-frame" id="artifactFrame" sandbox="allow-scripts allow-popups allow-forms"></iframe>
+    <div class="artifact-actions">
+      <button type="button" id="downloadArtifact">⬇ Télécharger</button>
+      <button type="button" id="publishArtifact">🚀 Publier</button>
+    </div>
+  </aside>
 </div>
 
 <div class="overlay" id="settingsOverlay">
@@ -436,7 +484,8 @@
     currentAgentId: null,
     // par agent: { sessionId, messages: [{role, content}], loaded }
     sessions: {},
-    pendingAttachment: null
+    pendingAttachment: null,
+    lastArtifactHtml: null
   };
 
   const el = (id) => document.getElementById(id);
@@ -706,14 +755,47 @@
     chatScroll.scrollTop = chatScroll.scrollHeight;
   }
 
+  function extractHtmlBlock(text){
+    const match = text.match(/```html\s*\n([\s\S]*?)```/i);
+    return match ? { html: match[1].trim(), before: text.slice(0, match.index).trim(), after: text.slice(match.index + match[0].length).trim() } : null;
+  }
+
+  function openArtifact(html, title){
+    state.lastArtifactHtml = html;
+    el('artifactTitle').textContent = '📄 ' + (title || 'site.html');
+    el('artifactFrame').srcdoc = html;
+    el('artifactPanel').classList.add('open');
+  }
+
   function appendMessageEl(role, content){
     const wrap = document.createElement('div');
     wrap.className = 'msg ' + role;
     const roleLabel = { user:'Toi', agent: (state.agents.find(a=>a.id===state.currentAgentId)||{}).name || 'Agent', system:'Système', error:'Erreur' }[role] || role;
+
+    let displayContent = content;
+    let artifact = null;
+    if (role === 'agent'){
+      artifact = extractHtmlBlock(content);
+      if (artifact){
+        displayContent = [artifact.before, artifact.after].filter(Boolean).join('\n\n') || 'Voici le site généré :';
+      }
+    }
+
     wrap.innerHTML = (role === 'system')
       ? `<div class="bubble">${escapeHtml(content)}</div>`
       : `<span class="role">${escapeHtml(roleLabel)}</span><div class="bubble"></div>`;
-    if (role !== 'system') wrap.querySelector('.bubble').textContent = content;
+    if (role !== 'system') wrap.querySelector('.bubble').textContent = displayContent;
+
+    if (artifact){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'artifact-open-btn';
+      btn.textContent = '📄 Ouvrir l\'aperçu du site';
+      btn.addEventListener('click', () => openArtifact(artifact.html, 'site.html'));
+      wrap.appendChild(btn);
+      openArtifact(artifact.html, 'site.html'); // ouverture automatique
+    }
+
     chatScroll.appendChild(wrap);
     chatScroll.scrollTop = chatScroll.scrollHeight;
     return wrap;
@@ -968,6 +1050,54 @@
     }catch(err){
       alert("Erreur : " + err.message);
     }
+  });
+
+  // ---- panneau artefact (aperçu HTML) ----
+  el('closeArtifact').addEventListener('click', () => {
+    el('artifactPanel').classList.remove('open');
+  });
+
+  el('downloadArtifact').addEventListener('click', () => {
+    if (!state.lastArtifactHtml) return;
+    const blob = new Blob([state.lastArtifactHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'site.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  el('publishArtifact').addEventListener('click', async () => {
+    if (!state.lastArtifactHtml) return;
+    if (!state.config.adminUrl){
+      alert("La publication en ligne n'est pas encore configurée. Renseigne l'URL webhook admin dans ⚙ Configuration, ou télécharge le fichier pour l'héberger toi-même en attendant.");
+      return;
+    }
+    const btn = el('publishArtifact');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Publication…';
+    try{
+      const res = await fetch(state.config.adminUrl, {
+        method:'POST',
+        headers:{'Content-Type':'application/json', 'x-admin-key': state.config.adminKey},
+        body: JSON.stringify({ action:'publish_site', client_id: state.config.clientId, html: state.lastArtifactHtml })
+      });
+      const data = await res.json();
+      if (data.url){
+        btn.textContent = 'Publié ✓';
+        alert("Site publié : " + data.url);
+      }else{
+        throw new Error(data.error || 'réponse inattendue');
+      }
+    }catch(e){
+      btn.textContent = originalText;
+      alert("Erreur lors de la publication : " + e.message + "\n\n(Cette action nécessite encore d'être configurée côté n8n.)");
+    }
+    setTimeout(() => { btn.disabled = false; if (btn.textContent === 'Publication…') btn.textContent = originalText; }, 2000);
   });
 
   // ---- init ----
