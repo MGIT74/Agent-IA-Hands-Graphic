@@ -515,7 +515,12 @@
           <form class="admin-form" id="assignAgentForm">
             <select id="assignEmpSelect"></select>
             <select id="assignAgentSelect"></select>
-            <button type="submit">Assigner cet agent</button>
+            <button type="submit">Assigner à un employé (interne)</button>
+          </form>
+          <form class="admin-form" id="assignClientForm">
+            <select id="assignClientSelect"></select>
+            <select id="assignAgentClientSelect"></select>
+            <button type="submit">Donner accès à un client</button>
           </form>
           <div class="admin-list" id="agentsAdminList"><p class="admin-empty">Chargement…</p></div>
         </div>
@@ -569,11 +574,7 @@
       clientId: params.get('client') || stored.clientId || 'client_demo_01',
       clientName: params.get('client_name') || stored.clientName || 'Client démo'
     },
-    clients: [
-      { id:'client_demo_01', name:'Client démo' },
-      { id:'client_dupont', name:'Agence Dupont' },
-      { id:'client_martin_immo', name:'Martin Immobilier' }
-    ],
+    clients: [],
     agents: [],
     agentsLoaded: false,
     currentAgentId: null,
@@ -678,16 +679,22 @@
     const list = el('agentsAdminList');
     const empSelect = el('assignEmpSelect');
     const agentSelect = el('assignAgentSelect');
+    const clientSelect = el('assignClientSelect');
+    const agentClientSelect = el('assignAgentClientSelect');
     try{
-      const [agentsData, employeesData] = await Promise.all([
+      const [agentsData, employeesData, clientsData] = await Promise.all([
         adminFetch('list_agents'),
-        adminFetch('list_employees')
+        adminFetch('list_employees'),
+        adminFetch('list_clients')
       ]);
       const agents = agentsData.agents || [];
       const employees = employeesData.employees || [];
+      const clientsList = clientsData.clients || [];
 
       empSelect.innerHTML = employees.map(e => `<option value="${e.employee_id}">${escapeHtml(e.employee_name)}</option>`).join('');
       agentSelect.innerHTML = agents.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
+      clientSelect.innerHTML = clientsList.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+      agentClientSelect.innerHTML = agents.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
 
       if (agents.length === 0){ list.innerHTML = '<p class="admin-empty">Aucun agent en base.</p>'; return; }
       list.innerHTML = '';
@@ -762,8 +769,18 @@
     loadSkillsAdmin();
   }
 
-  function renderClientSelect(){
+  async function renderClientSelect(){
     const sel = el('clientSelect');
+    if (!state.config.adminUrl){
+      sel.innerHTML = `<option value="${escapeHtml(state.config.clientId)}">${escapeHtml(state.config.clientName)}</option>`;
+      return;
+    }
+    try{
+      const data = await adminFetch('list_clients');
+      state.clients = (data.clients || []).map(c => ({ id: c.external_ref, name: c.name }));
+    }catch(e){
+      state.clients = [{ id: state.config.clientId, name: state.config.clientName }];
+    }
     sel.innerHTML = '';
     state.clients.forEach(c => {
       const opt = document.createElement('option');
@@ -1292,6 +1309,19 @@
     try{
       await adminFetch('assign_agent', { employee_id, agent_id });
       loadEmployees();
+    }catch(err){
+      alert("Erreur : " + err.message);
+    }
+  });
+
+  el('assignClientForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const target_client_id = el('assignClientSelect').value;
+    const agent_id = el('assignAgentClientSelect').value;
+    if (!target_client_id || !agent_id) return;
+    try{
+      await adminFetch('assign_agent_to_client', { target_client_id, agent_id });
+      alert("Accès accordé. Le client peut maintenant discuter avec cet agent.");
     }catch(err){
       alert("Erreur : " + err.message);
     }
