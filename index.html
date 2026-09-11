@@ -37,6 +37,35 @@
   }
   #app{ display:flex; height:100vh; min-height:520px; }
 
+  .login-screen{
+    height:100vh; display:flex; align-items:center; justify-content:center;
+    background:var(--bg);
+  }
+  .login-card{
+    background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    padding:32px 30px; width:100%; max-width:360px;
+  }
+  .login-brand{ font-family:var(--font-display); font-weight:700; font-size:19px; margin:0 0 4px; color:var(--text); }
+  .login-sub{ color:var(--text-muted); font-size:13px; margin:0 0 20px; }
+  .login-error{ color:var(--danger); font-size:12.5px; margin:0 0 12px; }
+
+  /* ===== Page Paramètres (plein écran) ===== */
+  .settings-page{
+    height:100vh; overflow-y:auto; background:var(--bg);
+  }
+  .settings-header{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:16px 26px; border-bottom:1px solid var(--border); background:var(--panel);
+    position:sticky; top:0; z-index:5;
+  }
+  .settings-header h1{ font-family:var(--font-display); font-size:16px; margin:0; color:var(--text); }
+  .settings-body{ max-width:1100px; margin:0 auto; padding:26px; display:flex; flex-direction:column; gap:26px; }
+  .settings-section{
+    background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:22px 24px;
+  }
+  .settings-section h2{ font-family:var(--font-display); font-size:15px; margin:0 0 4px; color:var(--text); }
+  .settings-section .hint{ color:var(--text-muted); font-size:12.5px; margin:0 0 16px; line-height:1.5; }
+
   /* focus visibility */
   button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible{
     outline:2px solid var(--accent); outline-offset:2px;
@@ -294,8 +323,6 @@
   .btn-primary{ background:var(--accent); border:none; color:#FFFFFF; font-weight:600; border-radius:8px; padding:9px 16px; cursor:pointer; font-size:13px; }
 
   .sidebar-foot{ flex-wrap:wrap; gap:8px; }
-  #adminBtn{ display:none; }
-  #adminBtn.show{ display:flex; }
 
   .admin-drawer{ max-width:1080px; }
   .admin-columns{ display:flex; gap:22px; margin-top:4px; }
@@ -334,7 +361,25 @@
 </style>
 </head>
 <body>
-<div id="app">
+
+<div id="loginScreen" class="login-screen">
+  <form class="login-card" id="loginForm">
+    <p class="login-brand">Console Agents</p>
+    <p class="login-sub">Connecte-toi pour accéder à ton espace.</p>
+    <div class="field">
+      <label>Email</label>
+      <input id="loginEmail" type="email" required autocomplete="username">
+    </div>
+    <div class="field">
+      <label>Mot de passe</label>
+      <input id="loginPassword" type="password" required autocomplete="current-password">
+    </div>
+    <p class="login-error" id="loginError" style="display:none;"></p>
+    <button type="submit" class="btn-primary" id="loginSubmit" style="width:100%;">Se connecter</button>
+  </form>
+</div>
+
+<div id="app" style="display:none;">
 
   <aside class="sidebar" id="sidebar">
     <div class="brand">
@@ -357,8 +402,7 @@
 
     <div class="sidebar-foot">
       <span class="session-tag" id="clientTag" style="border:none;background:none;padding:0;"></span>
-      <button id="adminBtn">🛠 Administration</button>
-      <button id="settingsBtn">⚙ Configuration</button>
+      <button id="settingsBtn">⚙️ Paramètres</button>
     </div>
   </aside>
 
@@ -401,102 +445,96 @@
   </aside>
 </div>
 
-<div class="overlay" id="settingsOverlay">
-  <div class="drawer">
-    <h2>Configuration</h2>
-    <p class="hint">En production, ces valeurs viennent d'un lien signé généré après achat (ex: <span style="font-family:var(--font-mono)">/dashboard?client=xyz&token=...</span>) — ici tu peux les saisir à la main pour tester ton workflow n8n.</p>
-
-    <div class="field">
-      <label>URL webhook n8n — chat</label>
-      <input id="cfgChatUrl" placeholder="https://ton-n8n.exemple.com/webhook/agent-chat">
-    </div>
-    <div class="field">
-      <label>URL webhook n8n — historique (optionnel, réutilise l'URL de chat si vide)</label>
-      <input id="cfgHistUrl" placeholder="Laisse vide pour réutiliser l'URL de chat ci-dessus">
-    </div>
-    <div class="field">
-      <label>Client ID</label>
-      <input id="cfgClientId" placeholder="client_demo_01">
-    </div>
-    <div class="field">
-      <label>Nom du client (affichage)</label>
-      <input id="cfgClientName" placeholder="Agence Dupont">
-    </div>
-    <div class="field">
-      <label>URL webhook n8n — admin (gestion employés/agents)</label>
-      <input id="cfgAdminUrl" placeholder="https://ton-n8n.exemple.com/webhook/admin">
-    </div>
-    <div class="field">
-      <label>Clé admin</label>
-      <input id="cfgAdminKey" placeholder="sk_admin_...">
-    </div>
-
-    <div class="drawer-actions">
-      <button class="btn-ghost" id="cancelSettings" type="button">Annuler</button>
-      <button class="btn-primary" id="saveSettings" type="button">Enregistrer</button>
-    </div>
+<div class="settings-page" id="settingsPage" style="display:none;">
+  <div class="settings-header">
+    <button type="button" id="backFromSettings" class="btn-ghost">← Retour</button>
+    <h1>⚙️ Paramètres</h1>
+    <button type="button" id="logoutBtn" class="btn-ghost">Se déconnecter</button>
   </div>
-</div>
 
-<div class="overlay" id="adminOverlay">
-  <div class="drawer admin-drawer">
-    <h2>Administration</h2>
-    <p class="hint">Gère les employés de l'agence, leurs agents assignés, et renomme les agents. Ces actions passent par le webhook admin protégé par clé.</p>
-
-    <div class="admin-columns">
-      <div class="admin-col">
-        <h3>Employés</h3>
-        <form class="admin-form" id="createEmployeeForm">
-          <input id="newEmpName" placeholder="Nom" required>
-          <input id="newEmpEmail" type="email" placeholder="Email" required>
-          <select id="newEmpRole">
-            <option value="agent_manager">Gestionnaire d'agents</option>
-            <option value="admin">Admin</option>
-          </select>
-          <button type="submit">+ Ajouter un employé</button>
-        </form>
-        <div class="admin-list" id="employeesList"><p class="admin-empty">Chargement…</p></div>
+  <div class="settings-body">
+    <section class="settings-section">
+      <h2>Connexion</h2>
+      <p class="hint">En production, ces valeurs viennent d'un lien signé généré après achat. Modifie-les seulement si tu sais ce que tu fais.</p>
+      <div class="field">
+        <label>URL webhook n8n — chat</label>
+        <input id="cfgChatUrl" placeholder="https://ton-n8n.exemple.com/webhook/agent-chat">
       </div>
-
-      <div class="admin-col">
-        <h3>Agents</h3>
-        <form class="admin-form" id="createAgentForm">
-          <input id="newAgentName" placeholder="Nom de l'agent" required>
-          <input id="newAgentDesc" placeholder="Description courte">
-          <textarea id="newAgentPrompt" placeholder="Prompt système (ex: Tu es l'agent facturation de {client_name}...)" rows="2" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:7px 9px; font-family:var(--font-body); font-size:12.5px; resize:vertical;"></textarea>
-          <select id="newAgentModel">
-            <option value="gpt-oss:20b-cloud">gpt-oss:20b-cloud (rapide)</option>
-            <option value="qwen3.5:cloud">qwen3.5:cloud (plus poussé)</option>
-            <option value="llama3.2">llama3.2 (self-host)</option>
-          </select>
-          <button type="submit">+ Créer un agent</button>
-        </form>
-        <form class="admin-form" id="assignAgentForm">
-          <select id="assignEmpSelect"></select>
-          <select id="assignAgentSelect"></select>
-          <button type="submit">Assigner cet agent</button>
-        </form>
-        <div class="admin-list" id="agentsAdminList"><p class="admin-empty">Chargement…</p></div>
+      <div class="field">
+        <label>URL webhook n8n — historique (optionnel, réutilise l'URL de chat si vide)</label>
+        <input id="cfgHistUrl" placeholder="Laisse vide pour réutiliser l'URL de chat ci-dessus">
       </div>
-      <div class="admin-col">
-        <h3>Skills</h3>
-        <form class="admin-form" id="createSkillForm">
-          <input id="newSkillName" placeholder="Nom du skill (ex: Design landing page)" required>
-          <textarea id="newSkillContent" placeholder="Instructions expertes détaillées à injecter dans le prompt de l'agent quand ce skill est actif..." rows="4" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:7px 9px; font-family:var(--font-body); font-size:12.5px; resize:vertical;" required></textarea>
-          <button type="submit">+ Créer un skill</button>
-        </form>
-        <form class="admin-form" id="assignSkillForm">
-          <select id="assignSkillAgentSelect"></select>
-          <select id="assignSkillSelect"></select>
-          <button type="submit">Assigner ce skill</button>
-        </form>
-        <div class="admin-list" id="skillsAdminList"><p class="admin-empty">Chargement…</p></div>
+      <div class="field">
+        <label>Client ID</label>
+        <input id="cfgClientId" placeholder="client_demo_01">
       </div>
-    </div>
+      <div class="field">
+        <label>Nom du client (affichage)</label>
+        <input id="cfgClientName" placeholder="Agence Dupont">
+      </div>
+      <div class="field">
+        <label>URL webhook n8n — admin</label>
+        <input id="cfgAdminUrl" placeholder="https://ton-n8n.exemple.com/webhook/admin">
+      </div>
+      <button class="btn-primary" id="saveSettings" type="button">Enregistrer</button>
+    </section>
 
-    <div class="drawer-actions">
-      <button class="btn-ghost" id="closeAdmin" type="button">Fermer</button>
-    </div>
+    <section class="settings-section" id="adminSection">
+      <h2>Administration</h2>
+      <p class="hint">Gère les employés de l'agence, les agents et leurs compétences.</p>
+
+      <div class="admin-columns">
+        <div class="admin-col">
+          <h3>Employés</h3>
+          <form class="admin-form" id="createEmployeeForm">
+            <input id="newEmpName" placeholder="Nom" required>
+            <input id="newEmpEmail" type="email" placeholder="Email" required>
+            <input id="newEmpPassword" type="password" placeholder="Mot de passe initial" required>
+            <select id="newEmpRole">
+              <option value="agent_manager">Gestionnaire d'agents</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button type="submit">+ Ajouter un employé</button>
+          </form>
+          <div class="admin-list" id="employeesList"><p class="admin-empty">Chargement…</p></div>
+        </div>
+
+        <div class="admin-col">
+          <h3>Agents</h3>
+          <form class="admin-form" id="createAgentForm">
+            <input id="newAgentName" placeholder="Nom de l'agent" required>
+            <input id="newAgentDesc" placeholder="Description courte">
+            <textarea id="newAgentPrompt" placeholder="Prompt système (ex: Tu es l'agent facturation de {client_name}...)" rows="2" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:7px 9px; font-family:var(--font-body); font-size:12.5px; resize:vertical;"></textarea>
+            <select id="newAgentModel">
+              <option value="gpt-oss:20b-cloud">gpt-oss:20b-cloud (rapide)</option>
+              <option value="qwen3.5:cloud">qwen3.5:cloud (plus poussé)</option>
+              <option value="llama3.2">llama3.2 (self-host)</option>
+            </select>
+            <button type="submit">+ Créer un agent</button>
+          </form>
+          <form class="admin-form" id="assignAgentForm">
+            <select id="assignEmpSelect"></select>
+            <select id="assignAgentSelect"></select>
+            <button type="submit">Assigner cet agent</button>
+          </form>
+          <div class="admin-list" id="agentsAdminList"><p class="admin-empty">Chargement…</p></div>
+        </div>
+        <div class="admin-col">
+          <h3>Skills</h3>
+          <form class="admin-form" id="createSkillForm">
+            <input id="newSkillName" placeholder="Nom du skill (ex: Design landing page)" required>
+            <textarea id="newSkillContent" placeholder="Instructions expertes détaillées à injecter dans le prompt de l'agent quand ce skill est actif..." rows="4" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:7px 9px; font-family:var(--font-body); font-size:12.5px; resize:vertical;" required></textarea>
+            <button type="submit">+ Créer un skill</button>
+          </form>
+          <form class="admin-form" id="assignSkillForm">
+            <select id="assignSkillAgentSelect"></select>
+            <select id="assignSkillSelect"></select>
+            <button type="submit">Assigner ce skill</button>
+          </form>
+          <div class="admin-list" id="skillsAdminList"><p class="admin-empty">Chargement…</p></div>
+        </div>
+      </div>
+    </section>
   </div>
 </div>
 
@@ -516,14 +554,17 @@
   function saveStoredConfig(cfg){
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg)); }catch(e){ /* stockage indisponible, on ignore silencieusement */ }
   }
+  const DEFAULT_CHAT_URL = 'https://automatisation.handsgraphic.com/webhook/agent-chat';
+  const DEFAULT_ADMIN_URL = 'https://automatisation.handsgraphic.com/webhook/admin';
+
   const stored = loadStoredConfig();
 
   const state = {
     mode: 'client', // 'client' | 'agency'
     config: {
-      chatUrl: params.get('chat_webhook') || stored.chatUrl || '',
+      chatUrl: params.get('chat_webhook') || stored.chatUrl || DEFAULT_CHAT_URL,
       histUrl: params.get('hist_webhook') || stored.histUrl || '',
-      adminUrl: params.get('admin_webhook') || stored.adminUrl || '',
+      adminUrl: params.get('admin_webhook') || stored.adminUrl || DEFAULT_ADMIN_URL,
       adminKey: params.get('admin_key') || stored.adminKey || '',
       clientId: params.get('client') || stored.clientId || 'client_demo_01',
       clientName: params.get('client_name') || stored.clientName || 'Client démo'
@@ -590,7 +631,6 @@
     el('brandSub').textContent = state.mode === 'agency' ? 'Vue interne agence' : 'Espace client';
     el('clientTag').textContent = state.config.clientId;
     el('clientPicker').classList.toggle('show', state.mode === 'agency');
-    el('adminBtn').classList.toggle('show', state.mode === 'agency');
   }
 
   // ---- Administration ----
@@ -1191,51 +1231,52 @@
     loadAgentsForClient();
   });
 
-  // settings drawer
-  el('settingsBtn').addEventListener('click', () => {
+  // ---- page Paramètres (plein écran, fusion Configuration + Administration) ----
+  function openSettingsPage(){
     el('cfgChatUrl').value = state.config.chatUrl;
     el('cfgHistUrl').value = state.config.histUrl;
     el('cfgClientId').value = state.config.clientId;
     el('cfgClientName').value = state.config.clientName;
-    el('settingsOverlay').classList.add('show');
+    el('cfgAdminUrl').value = state.config.adminUrl;
+    el('app').style.display = 'none';
+    el('settingsPage').style.display = 'block';
+    loadEmployees();
+    loadAgentsAdmin();
+    loadSkillsAdmin();
+  }
+  function closeSettingsPage(){
+    el('settingsPage').style.display = 'none';
+    el('app').style.display = 'flex';
+  }
+
+  el('settingsBtn').addEventListener('click', openSettingsPage);
+  el('backFromSettings').addEventListener('click', closeSettingsPage);
+  el('logoutBtn').addEventListener('click', () => {
+    if (confirm('Se déconnecter ?')) logout();
   });
-  el('cancelSettings').addEventListener('click', () => el('settingsOverlay').classList.remove('show'));
-  el('settingsOverlay').addEventListener('click', (e) => { if (e.target.id === 'settingsOverlay') el('settingsOverlay').classList.remove('show'); });
   el('saveSettings').addEventListener('click', () => {
     state.config.chatUrl = el('cfgChatUrl').value.trim();
     state.config.histUrl = el('cfgHistUrl').value.trim();
     state.config.adminUrl = el('cfgAdminUrl').value.trim();
-    state.config.adminKey = el('cfgAdminKey').value.trim();
     state.config.clientId = el('cfgClientId').value.trim() || state.config.clientId;
     state.config.clientName = el('cfgClientName').value.trim() || state.config.clientName;
     saveStoredConfig(state.config);
-    el('settingsOverlay').classList.remove('show');
     renderHeader();
     if (state.currentAgentId) el('agentCtx').textContent = state.config.clientName + ' · ' + state.config.clientId;
     loadAgentsForClient();
+    alert('Paramètres enregistrés.');
   });
-
-  // populate admin fields when opening settings too
-  const origSettingsBtnHandler = el('settingsBtn');
-  origSettingsBtnHandler.addEventListener('click', () => {
-    el('cfgAdminUrl').value = state.config.adminUrl;
-    el('cfgAdminKey').value = state.config.adminKey;
-  });
-
-  // admin panel events
-  el('adminBtn').addEventListener('click', openAdmin);
-  el('closeAdmin').addEventListener('click', () => el('adminOverlay').classList.remove('show'));
-  el('adminOverlay').addEventListener('click', (e) => { if (e.target.id === 'adminOverlay') el('adminOverlay').classList.remove('show'); });
 
   el('createEmployeeForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = el('newEmpName').value.trim();
     const email = el('newEmpEmail').value.trim();
+    const password = el('newEmpPassword').value;
     const role = el('newEmpRole').value;
-    if (!name || !email) return;
+    if (!name || !email || !password) return;
     try{
-      await adminFetch('create_employee', { name, email, role });
-      el('newEmpName').value = ''; el('newEmpEmail').value = '';
+      await adminFetch('create_employee', { name, email, password, role });
+      el('newEmpName').value = ''; el('newEmpEmail').value = ''; el('newEmpPassword').value = '';
       loadEmployees();
       loadAgentsAdmin();
     }catch(err){
@@ -1356,10 +1397,73 @@
     setTimeout(() => { btn.disabled = false; if (btn.textContent === 'Publication…') btn.textContent = originalText; }, 2000);
   });
 
+  // ---- authentification ----
+  const AUTH_STORAGE_KEY = 'agent_console_auth_v1';
+  function loadAuth(){
+    try{
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+  function saveAuth(auth){
+    try{ localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth)); }catch(e){ /* ignore */ }
+  }
+  function clearAuth(){
+    try{ localStorage.removeItem(AUTH_STORAGE_KEY); }catch(e){ /* ignore */ }
+  }
+
+  function startApp(){
+    el('loginScreen').style.display = 'none';
+    el('app').style.display = 'flex';
+    renderHeader();
+    renderClientSelect();
+    loadAgentsForClient();
+  }
+
+  el('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = el('loginEmail').value.trim();
+    const password = el('loginPassword').value;
+    const errBox = el('loginError');
+    const btn = el('loginSubmit');
+    errBox.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Connexion…';
+    try{
+      const res = await fetch(state.config.adminUrl, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'login', email, password })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Email ou mot de passe incorrect.');
+      state.employee = data.employee;
+      state.config.adminKey = data.admin_key || '';
+      saveStoredConfig(state.config);
+      saveAuth({ employee: data.employee, admin_key: data.admin_key });
+      startApp();
+    }catch(err){
+      errBox.textContent = err.message || "Impossible de se connecter.";
+      errBox.style.display = 'block';
+    }
+    btn.disabled = false;
+    btn.textContent = 'Se connecter';
+  });
+
+  function logout(){
+    clearAuth();
+    state.employee = null;
+    location.reload();
+  }
+
   // ---- init ----
-  renderHeader();
-  renderClientSelect();
-  loadAgentsForClient();
+  const existingAuth = loadAuth();
+  if (existingAuth){
+    state.employee = existingAuth.employee;
+    state.config.adminKey = existingAuth.admin_key || state.config.adminKey;
+    startApp();
+  }
+  // sinon, l'écran de connexion (affiché par défaut) reste visible jusqu'à connexion réussie
 })();
 </script>
 </body>
