@@ -114,7 +114,7 @@
     font-size:11px; color:var(--text-muted); text-transform:none;
     padding:14px 18px 6px; letter-spacing:0.2px;
   }
-  .agent-list{ flex:1; overflow-y:auto; padding:0 10px; }
+  .agent-list{ flex:0 1 auto; max-height:40vh; overflow-y:auto; padding:0 10px; }
   .agent-item{
     display:flex; align-items:flex-start; gap:10px;
     padding:10px 8px; border-radius:8px; cursor:pointer; margin-bottom:2px;
@@ -161,25 +161,28 @@
   }
 
   .topbar-actions{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
-  .topbar-btn{
-    background:var(--panel); border:1px solid var(--border); color:var(--text);
-    border-radius:8px; padding:6px 10px; font-size:12px; cursor:pointer; font-family:var(--font-body);
-  }
-  .topbar-btn:hover{ background:var(--panel-raised); }
-  .topbar-btn:disabled{ opacity:.45; cursor:not-allowed; }
 
-  .history-panel{
-    max-height:280px; overflow-y:auto; border-bottom:1px solid var(--border);
-    background:var(--panel); padding:10px 26px;
+  .new-chat-btn{
+    margin:12px 18px 4px; display:flex; align-items:center; gap:8px;
+    background:var(--panel-raised); border:1px solid var(--border); color:var(--text);
+    border-radius:10px; padding:9px 12px; font-size:13px; font-weight:500; cursor:pointer;
+    font-family:var(--font-body); text-align:left;
   }
-  .history-item{
-    display:flex; justify-content:space-between; align-items:center; gap:12px;
-    padding:9px 10px; border-radius:8px; cursor:pointer; margin-bottom:2px;
+  .new-chat-btn:hover{ background:var(--accent-dim); border-color:rgba(47,111,237,0.35); }
+  .new-chat-btn .plus{ font-size:16px; line-height:1; color:var(--accent); font-weight:700; }
+
+  .conversation-list{ overflow-y:auto; padding:0 10px; flex:1; min-height:0; }
+  .conversation-item{
+    padding:8px 9px; border-radius:8px; cursor:pointer; margin-bottom:1px;
   }
-  .history-item:hover{ background:var(--panel-raised); }
-  .history-item .preview{ font-size:12.5px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
-  .history-item .date{ font-size:10.5px; color:var(--text-muted); flex-shrink:0; }
-  .history-empty{ color:var(--text-muted); font-size:12.5px; padding:8px 2px; }
+  .conversation-item:hover{ background:var(--panel-raised); }
+  .conversation-item.current{ background:var(--accent-dim); }
+  .conversation-item .preview{
+    font-size:12.5px; color:var(--text); overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; display:block;
+  }
+  .conversation-item .date{ font-size:10px; color:var(--text-muted); }
+  .conversation-empty{ color:var(--text-muted); font-size:11.5px; padding:6px 9px; }
 
   .chat-scroll{ flex:1; overflow-y:auto; padding:22px 26px; display:flex; flex-direction:column; gap:16px; }
   .msg{ max-width:640px; display:flex; flex-direction:column; gap:4px; }
@@ -418,8 +421,15 @@
       <select id="clientSelect"></select>
     </div>
 
+    <button type="button" id="newChatSidebarBtn" class="new-chat-btn">
+      <span class="plus">+</span> Nouvelle discussion
+    </button>
+
     <p class="agents-label">Agents disponibles</p>
     <div class="agent-list" id="agentList"></div>
+
+    <p class="agents-label" id="conversationsLabel" style="display:none;">Conversations</p>
+    <div class="conversation-list" id="conversationList" style="display:none;"></div>
 
     <div class="sidebar-foot">
       <span class="session-tag" id="clientTag" style="border:none;background:none;padding:0;"></span>
@@ -435,13 +445,9 @@
         <span class="ctx" id="agentCtx">—</span>
       </div>
       <div class="topbar-actions">
-        <button type="button" id="historyBtn" class="topbar-btn" title="Historique des conversations" disabled>📜 Historique</button>
-        <button type="button" id="newChatBtn" class="topbar-btn" title="Nouvelle discussion" disabled>+ Nouveau</button>
         <span class="session-tag" id="sessionTag">session: —</span>
       </div>
     </div>
-
-    <div class="history-panel" id="historyPanel" style="display:none;"></div>
 
     <div class="chat-scroll" id="chatScroll">
       <div class="empty-state" id="emptyState">
@@ -1017,9 +1023,6 @@
     messageInput.disabled = false;
     sendBtn.disabled = false;
     el('attachBtn').disabled = false;
-    el('historyBtn').disabled = false;
-    el('newChatBtn').disabled = false;
-    el('historyPanel').style.display = 'none';
 
     const session = getSession(agentId);
     el('sessionTag').textContent = 'session: ' + session.sessionId.slice(0,8);
@@ -1028,6 +1031,7 @@
       await loadHistoryIntoSession(agentId, session, agentDisplayName);
     }
     renderMessages();
+    loadConversationList();
   }
 
   async function loadHistoryIntoSession(agentId, session, agentDisplayName){
@@ -1058,14 +1062,14 @@
 
   function newConversation(){
     const agentId = state.currentAgentId;
-    if (!agentId) return;
+    if (!agentId){ alert("Choisis d'abord un agent dans la liste."); return; }
     const newId = uuid();
     storedSessionIds[sessionMapKey(agentId)] = newId;
     saveStoredSessionIds(storedSessionIds);
     state.sessions[agentId] = { sessionId: newId, messages: [{ role:'system', content:'Nouvelle conversation démarrée.' }], loaded:true };
     el('sessionTag').textContent = 'session: ' + newId.slice(0,8);
-    el('historyPanel').style.display = 'none';
     renderMessages();
+    loadConversationList();
   }
 
   async function switchToConversation(agentId, sessionId){
@@ -1076,17 +1080,22 @@
     const session = state.sessions[agentId];
     await loadHistoryIntoSession(agentId, session, (agent && agent.name) || agentId);
     el('sessionTag').textContent = 'session: ' + sessionId.slice(0,8);
-    el('historyPanel').style.display = 'none';
     renderMessages();
+    loadConversationList();
   }
 
-  async function openHistoryPanel(){
-    const panel = el('historyPanel');
-    const isOpen = panel.style.display !== 'none';
-    if (isOpen){ panel.style.display = 'none'; return; }
-    if (!state.currentAgentId){ return; }
-    panel.style.display = 'block';
-    panel.innerHTML = '<p class="history-empty">Chargement…</p>';
+  async function loadConversationList(){
+    const label = el('conversationsLabel');
+    const list = el('conversationList');
+    if (!state.currentAgentId){
+      label.style.display = 'none';
+      list.style.display = 'none';
+      return;
+    }
+    label.style.display = 'block';
+    list.style.display = 'block';
+    list.innerHTML = '<p class="conversation-empty">Chargement…</p>';
+    const currentSessionId = getSession(state.currentAgentId).sessionId;
     try{
       const res = await fetch(state.config.chatUrl, {
         method:'POST',
@@ -1096,20 +1105,20 @@
       const data = await res.json();
       const conversations = data.conversations || [];
       if (conversations.length === 0){
-        panel.innerHTML = '<p class="history-empty">Aucune conversation précédente.</p>';
+        list.innerHTML = '<p class="conversation-empty">Aucune conversation précédente.</p>';
         return;
       }
-      panel.innerHTML = '';
+      list.innerHTML = '';
       conversations.forEach(conv => {
         const item = document.createElement('div');
-        item.className = 'history-item';
-        const dateStr = conv.created_at ? new Date(conv.created_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+        item.className = 'conversation-item' + (conv.session_id === currentSessionId ? ' current' : '');
+        const dateStr = conv.created_at ? new Date(conv.created_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }) : '';
         item.innerHTML = `<span class="preview">${escapeHtml(conv.preview || '(vide)')}</span><span class="date">${escapeHtml(dateStr)}</span>`;
         item.addEventListener('click', () => switchToConversation(state.currentAgentId, conv.session_id));
-        panel.appendChild(item);
+        list.appendChild(item);
       });
     }catch(e){
-      panel.innerHTML = `<p class="history-empty">Erreur : ${escapeHtml(e.message)}</p>`;
+      list.innerHTML = `<p class="conversation-empty">Erreur : ${escapeHtml(e.message)}</p>`;
     }
   }
 
@@ -1603,9 +1612,9 @@
     location.reload();
   }
 
-  el('historyBtn').addEventListener('click', openHistoryPanel);
-  el('newChatBtn').addEventListener('click', () => {
-    if (confirm('Démarrer une nouvelle discussion ? Tu pourras retrouver la précédente dans l\'historique.')) newConversation();
+  el('newChatSidebarBtn').addEventListener('click', () => {
+    if (!state.currentAgentId){ newConversation(); return; }
+    if (confirm("Démarrer une nouvelle discussion ? Tu pourras retrouver la précédente dans l'historique.")) newConversation();
   });
 
   // ---- init ----
