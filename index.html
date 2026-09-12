@@ -174,7 +174,15 @@
   .conversation-list{ overflow-y:auto; padding:0 10px; flex:1; min-height:0; }
   .conversation-item{
     padding:8px 9px; border-radius:8px; cursor:pointer; margin-bottom:1px;
+    display:flex; align-items:center; gap:6px;
   }
+  .conversation-item .preview{ flex:1; min-width:0; }
+  .conv-delete-btn{
+    background:none; border:none; color:var(--text-muted); font-size:11px; cursor:pointer;
+    opacity:0; flex-shrink:0; padding:2px 4px; border-radius:4px;
+  }
+  .conversation-item:hover .conv-delete-btn{ opacity:1; }
+  .conv-delete-btn:hover{ color:var(--danger); background:var(--panel-raised); }
   .conversation-item:hover{ background:var(--panel-raised); }
   .conversation-item.current{ background:var(--accent-dim); }
   .conversation-item .preview{
@@ -364,6 +372,11 @@
   .admin-list{ max-height:260px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
   .admin-item{ background:var(--panel-raised); border:1px solid var(--border); border-radius:8px; padding:9px 10px; }
   .admin-item .row1{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .admin-delete-btn{
+    background:none; border:1px solid var(--border); color:var(--text-muted); border-radius:6px;
+    font-size:11px; padding:3px 6px; cursor:pointer; flex-shrink:0;
+  }
+  .admin-delete-btn:hover{ color:var(--danger); border-color:var(--danger); background:#FEF2F2; }
   .admin-item .title{ font-weight:500; font-size:13px; }
   .admin-item .sub{ font-size:11px; color:var(--text-muted); margin-top:1px; }
   .admin-chips{ display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
@@ -710,6 +723,7 @@
 
   async function loadEmployees(){
     const list = el('employeesList');
+    const isAdmin = state.employee && state.employee.role === 'admin';
     try{
       const data = await adminFetch('list_employees');
       const employees = data.employees || [];
@@ -719,16 +733,31 @@
         const item = document.createElement('div');
         item.className = 'admin-item';
         const agentsChips = (emp.agents || []).map(a => `<span class="admin-chip">${escapeHtml(a.agent_name)}</span>`).join('');
+        const deleteBtn = isAdmin ? `<button type="button" class="admin-delete-btn" data-delete-employee="${emp.employee_id}" title="Supprimer">🗑</button>` : '';
         item.innerHTML = `
           <div class="row1">
             <div>
               <p class="title">${escapeHtml(emp.employee_name)}</p>
               <p class="sub">${escapeHtml(emp.email)} · ${escapeHtml(emp.role)}</p>
             </div>
+            ${deleteBtn}
           </div>
           <div class="admin-chips">${agentsChips || '<span class="sub">Aucun agent assigné</span>'}</div>`;
         list.appendChild(item);
       });
+      if (isAdmin){
+        list.querySelectorAll('[data-delete-employee]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!confirm("Supprimer cet employé ? Les agents qu'il gérait resteront disponibles pour les autres employés.")) return;
+            try{
+              await adminFetch('delete_employee', { employee_id: state.employee.id, target_employee_id: btn.getAttribute('data-delete-employee') });
+              loadEmployees();
+            }catch(err){
+              alert("Erreur : " + err.message);
+            }
+          });
+        });
+      }
     }catch(e){
       list.innerHTML = `<p class="admin-empty">Erreur : ${escapeHtml(e.message)}</p>`;
     }
@@ -756,12 +785,17 @@
       agentClientSelect.innerHTML = agents.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
 
       if (agents.length === 0){ list.innerHTML = '<p class="admin-empty">Aucun agent en base.</p>'; return; }
+      const isAdmin = state.employee && state.employee.role === 'admin';
       list.innerHTML = '';
       agents.forEach(agent => {
         const item = document.createElement('div');
         item.className = 'admin-item';
+        const deleteBtn = isAdmin ? `<button type="button" class="admin-delete-btn" data-delete-agent="${agent.id}" title="Supprimer">🗑</button>` : '';
         item.innerHTML = `
-          <p class="title">${escapeHtml(agent.name)}</p>
+          <div class="row1">
+            <p class="title">${escapeHtml(agent.name)}</p>
+            ${deleteBtn}
+          </div>
           <p class="sub">${escapeHtml(agent.external_ref)} ${agent.active ? '' : '· inactif'}</p>
           <div class="agent-rename">
             <input type="text" value="${escapeHtml(agent.name)}" data-agent-id="${agent.id}">
@@ -786,6 +820,20 @@
           setTimeout(() => { btn.disabled = false; btn.textContent = 'Renommer'; }, 1500);
         });
       });
+      if (isAdmin){
+        list.querySelectorAll('[data-delete-agent]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (!confirm('Supprimer cet agent ? Il ne sera plus accessible pour les clients ni les employés.')) return;
+            try{
+              await adminFetch('delete_agent', { employee_id: state.employee.id, agent_id: btn.getAttribute('data-delete-agent') });
+              loadAgentsAdmin();
+              loadAgentsForClient();
+            }catch(err){
+              alert("Erreur : " + err.message);
+            }
+          });
+        });
+      }
     }catch(e){
       list.innerHTML = `<p class="admin-empty">Erreur : ${escapeHtml(e.message)}</p>`;
     }
@@ -1113,8 +1161,24 @@
         const item = document.createElement('div');
         item.className = 'conversation-item' + (conv.session_id === currentSessionId ? ' current' : '');
         const dateStr = conv.created_at ? new Date(conv.created_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }) : '';
-        item.innerHTML = `<span class="preview">${escapeHtml(conv.preview || '(vide)')}</span><span class="date">${escapeHtml(dateStr)}</span>`;
-        item.addEventListener('click', () => switchToConversation(state.currentAgentId, conv.session_id));
+        item.innerHTML = `<span class="preview">${escapeHtml(conv.preview || '(vide)')}</span><span class="date">${escapeHtml(dateStr)}</span><button type="button" class="conv-delete-btn" title="Supprimer">🗑</button>`;
+        item.querySelector('.preview').addEventListener('click', () => switchToConversation(state.currentAgentId, conv.session_id));
+        item.querySelector('.date').addEventListener('click', () => switchToConversation(state.currentAgentId, conv.session_id));
+        item.querySelector('.conv-delete-btn').addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!confirm('Supprimer définitivement cette conversation ?')) return;
+          try{
+            await fetch(state.config.chatUrl, {
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ action:'delete_conversation', client_id: state.config.clientId, agent_id: state.currentAgentId, session_id: conv.session_id })
+            });
+            if (conv.session_id === currentSessionId){ newConversation(); }
+            loadConversationList();
+          }catch(err){
+            alert("Erreur lors de la suppression : " + err.message);
+          }
+        });
         list.appendChild(item);
       });
     }catch(e){
