@@ -772,9 +772,15 @@
     <h2 id="postModalTitle">Nouveau post</h2>
     <form id="postForm">
       <input type="hidden" id="postId">
-      <div class="field">
-        <label>Date</label>
-        <input type="date" id="postDate" required>
+      <div class="field" style="display:flex; gap:10px;">
+        <div style="flex:1;">
+          <label>Date</label>
+          <input type="date" id="postDate" required>
+        </div>
+        <div style="flex:1;">
+          <label>Heure</label>
+          <input type="time" id="postTime">
+        </div>
       </div>
       <div class="field">
         <label>Titre</label>
@@ -2248,7 +2254,8 @@
         const chip = document.createElement('div');
         chip.className = 'calendar-post-chip';
         chip.style.background = PLATFORM_COLORS[p.platform] || PLATFORM_COLORS.autre;
-        chip.textContent = p.title;
+        const timeLabel = p.post_time ? String(p.post_time).slice(0,5) + ' ' : '';
+        chip.textContent = timeLabel + p.title;
         chip.addEventListener('click', (e) => { e.stopPropagation(); openPostModal(cellStr, p); });
         cell.appendChild(chip);
       });
@@ -2262,6 +2269,7 @@
     el('postModalTitle').textContent = post ? 'Modifier le post' : 'Nouveau post';
     el('postId').value = post ? post.id : '';
     el('postDate').value = dateStr;
+    el('postTime').value = post ? String(post.post_time || '09:00').slice(0,5) : '09:00';
     el('postTitle').value = post ? post.title : '';
     el('postPlatform').value = post ? post.platform : 'instagram';
     el('postStatus').value = post ? post.status : 'idee';
@@ -2294,6 +2302,7 @@
       post_content: el('postContent').value.trim(),
       post_platform: el('postPlatform').value,
       post_date: el('postDate').value,
+      post_time: el('postTime').value || '09:00',
       post_status: el('postStatus').value
     };
     if (!payload.post_title || !payload.post_date) return;
