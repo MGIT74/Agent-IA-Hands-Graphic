@@ -68,6 +68,35 @@
 
   .dialog-message{ font-size:14px; color:var(--text); line-height:1.5; margin:0 0 20px; }
 
+  .schedule-templates{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:10px; margin-bottom:22px; }
+  .template-card{
+    background:var(--panel-raised); border:1px solid var(--border); border-radius:10px;
+    padding:12px; cursor:pointer; text-align:left;
+  }
+  .template-card:hover{ border-color:var(--accent); background:var(--accent-dim); }
+  .template-card .icon{ font-size:18px; margin-bottom:4px; }
+  .template-card .name{ font-weight:600; font-size:13px; color:var(--text); }
+  .template-card .desc{ font-size:11.5px; color:var(--text-muted); margin-top:2px; line-height:1.4; }
+
+  #createScheduleForm .field{ margin-bottom:14px; }
+  #createScheduleForm select{
+    width:100%; background:var(--panel); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:9px 10px; font-family:var(--font-body); font-size:13px;
+  }
+
+  .schedule-item{
+    background:var(--panel-raised); border:1px solid var(--border); border-radius:10px;
+    padding:12px 14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+  }
+  .schedule-item .name{ font-weight:600; font-size:13.5px; color:var(--text); }
+  .schedule-item .meta{ font-size:11.5px; color:var(--text-muted); margin-top:2px; }
+  .schedule-item .actions{ display:flex; gap:6px; flex-shrink:0; }
+  .schedule-item .actions button{
+    background:var(--panel); border:1px solid var(--border); border-radius:7px;
+    padding:5px 9px; font-size:11.5px; cursor:pointer; color:var(--text);
+  }
+  .schedule-item .actions button:hover{ background:var(--accent-dim); }
+
   /* focus visibility */
   button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible{
     outline:2px solid var(--accent); outline-offset:2px;
@@ -439,6 +468,9 @@
     <button type="button" id="newChatSidebarBtn" class="new-chat-btn">
       <span class="plus">+</span> Nouvelle discussion
     </button>
+    <button type="button" id="scheduledBtn" class="new-chat-btn">
+      🕐 Programmé
+    </button>
 
     <p class="agents-label">Agents disponibles</p>
     <div class="agent-list" id="agentList"></div>
@@ -624,6 +656,67 @@
           <div class="admin-list" id="skillsAdminList"><p class="admin-empty">Chargement…</p></div>
         </div>
       </div>
+    </section>
+  </div>
+</div>
+
+<div class="settings-page" id="scheduledPage" style="display:none;">
+  <div class="settings-header">
+    <button type="button" id="backFromScheduled" class="btn-ghost">← Retour</button>
+    <h1>🕐 Programmé</h1>
+    <span></span>
+  </div>
+  <div class="settings-body">
+    <section class="settings-section">
+      <h2>Nouvelle tâche</h2>
+      <p class="hint">Exécute automatiquement un message envoyé à l'un de tes agents, selon un planning récurrent. Le résultat s'accumule dans une conversation dédiée.</p>
+
+      <div class="schedule-templates" id="scheduleTemplates"></div>
+
+      <form id="createScheduleForm">
+        <div class="field">
+          <label>Titre</label>
+          <input id="taskTitle" placeholder="Ex: Bilan quotidien" required>
+        </div>
+        <div class="field">
+          <label>Agent</label>
+          <select id="taskAgentSelect"></select>
+        </div>
+        <div class="field">
+          <label>Message à envoyer à l'agent</label>
+          <textarea id="taskPrompt" rows="3" placeholder="Ex: Fais un résumé de ce qu'il faut retenir aujourd'hui." style="width:100%; background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:9px 10px; font-family:var(--font-body); font-size:13px; resize:vertical;" required></textarea>
+        </div>
+        <div class="field">
+          <label>Fréquence</label>
+          <select id="taskFrequency">
+            <option value="daily">Tous les jours</option>
+            <option value="weekdays">En semaine (lun-ven)</option>
+            <option value="weekly">Une fois par semaine</option>
+          </select>
+        </div>
+        <div class="field" id="taskDayField" style="display:none;">
+          <label>Jour de la semaine</label>
+          <select id="taskDayOfWeek">
+            <option value="1">Lundi</option>
+            <option value="2">Mardi</option>
+            <option value="3">Mercredi</option>
+            <option value="4">Jeudi</option>
+            <option value="5">Vendredi</option>
+            <option value="6">Samedi</option>
+            <option value="0">Dimanche</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Heure</label>
+          <select id="taskHour"></select>
+        </div>
+        <button class="btn-primary" type="submit">+ Créer la tâche</button>
+      </form>
+    </section>
+
+    <section class="settings-section">
+      <h2>Tes tâches planifiées</h2>
+      <div id="scheduledTasksList"><p class="admin-empty">Chargement…</p></div>
     </section>
   </div>
 </div>
@@ -1851,6 +1944,142 @@
   el('newChatSidebarBtn').addEventListener('click', async () => {
     if (!state.currentAgentId){ newConversation(); return; }
     if (await customConfirm("Démarrer une nouvelle discussion ? Tu pourras retrouver la précédente dans l'historique.")) newConversation();
+  });
+
+  // ---- page Programmé (tâches récurrentes) ----
+  const SCHEDULE_TEMPLATES = [
+    { icon:'☀️', name:'Bilan quotidien', desc:'Ce qui compte retenir aujourd\'hui.', prompt:'Fais un résumé de ce qu\'il faut retenir aujourd\'hui.', frequency:'daily', hour:8 },
+    { icon:'📋', name:'Points en attente', desc:'Ce qui nécessite ton action.', prompt:'Liste les points qui nécessitent une action de ma part aujourd\'hui.', frequency:'weekdays', hour:8 },
+    { icon:'📅', name:'Bilan hebdomadaire', desc:'Résumé de la semaine, chaque vendredi.', prompt:'Fais le bilan de cette semaine.', frequency:'weekly', hour:16, day:5 },
+    { icon:'💡', name:'Idées de contenu', desc:'3 idées chaque lundi.', prompt:'Propose-moi 3 idées de contenu pour cette semaine.', frequency:'weekly', hour:9, day:1 },
+    { icon:'📨', name:'Rapport client', desc:'Un résumé prêt à partager, en semaine.', prompt:'Prépare un résumé pour mes clients aujourd\'hui.', frequency:'weekdays', hour:9 },
+    { icon:'🔎', name:'Veille', desc:'Synthèse des points à surveiller.', prompt:'Fais une synthèse des points importants à surveiller.', frequency:'daily', hour:9 }
+  ];
+
+  function renderScheduleTemplates(){
+    const box = el('scheduleTemplates');
+    box.innerHTML = '';
+    SCHEDULE_TEMPLATES.forEach(t => {
+      const card = document.createElement('div');
+      card.className = 'template-card';
+      card.innerHTML = `<div class="icon">${t.icon}</div><div class="name">${escapeHtml(t.name)}</div><div class="desc">${escapeHtml(t.desc)}</div>`;
+      card.addEventListener('click', () => {
+        el('taskTitle').value = t.name;
+        el('taskPrompt').value = t.prompt;
+        el('taskFrequency').value = t.frequency;
+        el('taskHour').value = String(t.hour);
+        el('taskDayField').style.display = t.frequency === 'weekly' ? 'block' : 'none';
+        if (t.day !== undefined) el('taskDayOfWeek').value = String(t.day);
+      });
+      box.appendChild(card);
+    });
+  }
+
+  function populateTaskHourSelect(){
+    const sel = el('taskHour');
+    sel.innerHTML = '';
+    for (let h = 0; h < 24; h++){
+      const opt = document.createElement('option');
+      opt.value = String(h);
+      opt.textContent = (h < 10 ? '0' + h : h) + 'h00';
+      sel.appendChild(opt);
+    }
+    sel.value = '9';
+  }
+
+  el('taskFrequency').addEventListener('change', () => {
+    el('taskDayField').style.display = el('taskFrequency').value === 'weekly' ? 'block' : 'none';
+  });
+
+  async function openScheduledPage(){
+    el('app').style.display = 'none';
+    el('scheduledPage').style.display = 'block';
+    renderScheduleTemplates();
+    populateTaskHourSelect();
+    try{
+      const data = await adminFetch('list_my_agents', { employee_id: state.employee.id });
+      const agents = data.agents || [];
+      el('taskAgentSelect').innerHTML = agents.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
+    }catch(e){ /* ignore */ }
+    loadScheduledTasks();
+  }
+  function closeScheduledPage(){
+    el('scheduledPage').style.display = 'none';
+    el('app').style.display = 'flex';
+  }
+
+  async function loadScheduledTasks(){
+    const box = el('scheduledTasksList');
+    box.innerHTML = '<p class="admin-empty">Chargement…</p>';
+    try{
+      const data = await adminFetch('list_scheduled_tasks', { employee_id: state.employee.id });
+      const tasks = data.tasks || [];
+      if (tasks.length === 0){
+        box.innerHTML = '<p class="admin-empty">Aucune tâche planifiée pour le moment.</p>';
+        return;
+      }
+      const dayNames = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+      const freqLabels = { daily:'Tous les jours', weekdays:'En semaine', weekly:'Chaque semaine' };
+      box.innerHTML = '';
+      tasks.forEach(task => {
+        const item = document.createElement('div');
+        item.className = 'schedule-item';
+        let when = freqLabels[task.frequency] || task.frequency;
+        if (task.frequency === 'weekly' && task.day_of_week !== null) when += ' (' + dayNames[task.day_of_week] + ')';
+        when += ' à ' + (task.hour_of_day < 10 ? '0' + task.hour_of_day : task.hour_of_day) + 'h00';
+        item.innerHTML = `
+          <div>
+            <div class="name">${escapeHtml(task.title)}</div>
+            <div class="meta">${escapeHtml(task.agent_name)} · ${escapeHtml(when)}</div>
+          </div>
+          <div class="actions">
+            <button type="button" data-view-task="${task.agent_id}" data-session="${task.session_id}">Voir</button>
+            <button type="button" data-delete-task="${task.id}">🗑</button>
+          </div>`;
+        box.appendChild(item);
+      });
+      box.querySelectorAll('[data-view-task]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          closeScheduledPage();
+          await switchToConversation(btn.getAttribute('data-view-task'), btn.getAttribute('data-session'));
+        });
+      });
+      box.querySelectorAll('[data-delete-task]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!(await customConfirm('Supprimer cette tâche planifiée ?'))) return;
+          try{
+            await adminFetch('delete_scheduled_task', { employee_id: state.employee.id, task_id: btn.getAttribute('data-delete-task') });
+            loadScheduledTasks();
+          }catch(err){
+            customAlert('Erreur : ' + err.message);
+          }
+        });
+      });
+    }catch(e){
+      box.innerHTML = `<p class="admin-empty">Erreur : ${escapeHtml(e.message)}</p>`;
+    }
+  }
+
+  el('scheduledBtn').addEventListener('click', openScheduledPage);
+  el('backFromScheduled').addEventListener('click', closeScheduledPage);
+
+  el('createScheduleForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const task_title = el('taskTitle').value.trim();
+    const agent_id = el('taskAgentSelect').value;
+    const task_prompt = el('taskPrompt').value.trim();
+    const task_frequency = el('taskFrequency').value;
+    const task_day_of_week = task_frequency === 'weekly' ? el('taskDayOfWeek').value : '';
+    const task_hour = el('taskHour').value;
+    if (!task_title || !agent_id || !task_prompt) return;
+    try{
+      await adminFetch('create_scheduled_task', { employee_id: state.employee.id, agent_id, task_title, task_prompt, task_frequency, task_day_of_week, task_hour });
+      el('createScheduleForm').reset();
+      populateTaskHourSelect();
+      loadScheduledTasks();
+    }catch(err){
+      customAlert('Erreur : ' + err.message);
+    }
   });
 
   // ---- init ----
