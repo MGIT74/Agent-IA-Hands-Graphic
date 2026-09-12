@@ -501,7 +501,7 @@
   </div>
 
   <div class="settings-body">
-    <section class="settings-section">
+    <section class="settings-section" id="connexionSection">
       <h2>Connexion</h2>
       <p class="hint">En production, ces valeurs viennent d'un lien signé généré après achat. Modifie-les seulement si tu sais ce que tu fais.</p>
       <div class="field">
@@ -525,6 +525,17 @@
         <input id="cfgAdminUrl" placeholder="https://ton-n8n.exemple.com/webhook/admin">
       </div>
       <button class="btn-primary" id="saveSettings" type="button">Enregistrer</button>
+    </section>
+
+    <section class="settings-section" id="myProfileSection" style="display:none;">
+      <h2>Mon profil</h2>
+      <p class="hint" id="profileInfo"></p>
+    </section>
+
+    <section class="settings-section" id="myAgentsSection" style="display:none;">
+      <h2>Mes agents</h2>
+      <p class="hint">Renomme tes agents, gère leurs compétences, ou ajoute-en une nouvelle (partagée avec toute l'agence).</p>
+      <div id="myAgentsList"></div>
     </section>
 
     <section class="settings-section" id="adminSection">
@@ -918,6 +929,104 @@
       });
     }catch(e){
       list.innerHTML = `<p class="admin-empty">Erreur : ${escapeHtml(e.message)}</p>`;
+    }
+  }
+
+  async function loadMyAgents(){
+    const box = el('myAgentsList');
+    box.innerHTML = '<p class="admin-empty">Chargement…</p>';
+    try{
+      const [agentsData, allSkillsData] = await Promise.all([
+        adminFetch('list_my_agents', { employee_id: state.employee.id }),
+        adminFetch('list_skills')
+      ]);
+      const agents = agentsData.agents || [];
+      const allSkills = allSkillsData.skills || [];
+      if (agents.length === 0){
+        box.innerHTML = '<p class="admin-empty">Aucun agent ne t\'est encore assigné. Demande à un admin de t\'en assigner un dans Administration.</p>';
+        return;
+      }
+      box.innerHTML = '';
+      for (const agent of agents){
+        const card = document.createElement('div');
+        card.className = 'admin-item';
+        card.style.marginBottom = '14px';
+        const skillSelectId = 'skillSel_' + agent.id;
+        card.innerHTML = `
+          <p class="sub">${escapeHtml(agent.external_ref)}</p>
+          <div class="agent-rename">
+            <input type="text" value="${escapeHtml(agent.name)}" data-agent-name-input="${agent.id}">
+            <button type="button" data-rename-agent="${agent.id}">Renommer</button>
+          </div>
+          <p class="sub" style="margin-top:10px;">Skills actifs :</p>
+          <div class="admin-chips" data-skills-chips="${agent.id}"><span class="sub">Chargement…</span></div>
+          <div class="agent-rename" style="margin-top:8px;">
+            <select id="${skillSelectId}">${allSkills.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('')}</select>
+            <button type="button" data-add-skill="${agent.id}" data-select-id="${skillSelectId}">+ Ajouter</button>
+          </div>
+          <details style="margin-top:8px;">
+            <summary style="cursor:pointer; font-size:12px; color:var(--text-muted);">+ Créer un nouveau skill pour cet agent</summary>
+            <form class="admin-form" data-new-skill-form="${agent.id}" style="margin-top:8px;">
+              <input type="text" placeholder="Nom du skill" data-new-skill-name required>
+              <textarea rows="3" placeholder="Instructions expertes détaillées..." data-new-skill-content style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:7px 9px; font-family:var(--font-body); font-size:12.5px; resize:vertical;" required></textarea>
+              <button type="submit">+ Créer et assigner</button>
+            </form>
+          </details>`;
+        box.appendChild(card);
+
+        adminFetch('list_agent_skills', { agent_id: agent.id }).then(data => {
+          const chipsBox = card.querySelector(`[data-skills-chips="${agent.id}"]`);
+          const skills = data.skills || [];
+          chipsBox.innerHTML = skills.length
+            ? skills.map(s => `<span class="admin-chip">${escapeHtml(s.name)}</span>`).join('')
+            : '<span class="sub">Aucun skill actif</span>';
+        }).catch(() => {});
+
+        card.querySelector(`[data-rename-agent="${agent.id}"]`).addEventListener('click', async (e) => {
+          const btn = e.currentTarget;
+          const input = card.querySelector(`[data-agent-name-input="${agent.id}"]`);
+          const newName = input.value.trim();
+          if (!newName) return;
+          btn.disabled = true; btn.textContent = '...';
+          try{
+            await adminFetch('update_agent_name', { agent_id: agent.id, new_name: newName, employee_id: state.employee.id });
+            btn.textContent = 'OK ✓';
+            loadAgentsForClient();
+          }catch(err){
+            btn.textContent = 'Erreur';
+          }
+          setTimeout(() => { btn.disabled = false; btn.textContent = 'Renommer'; }, 1500);
+        });
+
+        card.querySelector(`[data-add-skill="${agent.id}"]`).addEventListener('click', async (e) => {
+          const btn = e.currentTarget;
+          const skillId = card.querySelector('#' + skillSelectId).value;
+          if (!skillId) return;
+          try{
+            await adminFetch('assign_skill', { agent_id: agent.id, skill_id: skillId, employee_id: state.employee.id });
+            loadMyAgents();
+          }catch(err){
+            customAlert("Erreur : " + err.message);
+          }
+        });
+
+        card.querySelector(`[data-new-skill-form="${agent.id}"]`).addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const nameInput = card.querySelector('[data-new-skill-name]');
+          const contentInput = card.querySelector('[data-new-skill-content]');
+          const skill_name = nameInput.value.trim();
+          const skill_content = contentInput.value.trim();
+          if (!skill_name || !skill_content) return;
+          try{
+            await adminFetch('create_skill', { skill_name, skill_content, agent_id: agent.id, employee_id: state.employee.id });
+            loadMyAgents();
+          }catch(err){
+            customAlert("Erreur : " + err.message);
+          }
+        });
+      }
+    }catch(e){
+      box.innerHTML = `<p class="admin-empty">Erreur : ${escapeHtml(e.message)}</p>`;
     }
   }
 
@@ -1487,16 +1596,30 @@
 
   // ---- page Paramètres (plein écran, fusion Configuration + Administration) ----
   function openSettingsPage(){
-    el('cfgChatUrl').value = state.config.chatUrl;
-    el('cfgHistUrl').value = state.config.histUrl;
-    el('cfgClientId').value = state.config.clientId;
-    el('cfgClientName').value = state.config.clientName;
-    el('cfgAdminUrl').value = state.config.adminUrl;
+    const isAdmin = state.employee && state.employee.role === 'admin';
     el('app').style.display = 'none';
     el('settingsPage').style.display = 'block';
-    loadEmployees();
-    loadAgentsAdmin();
-    loadSkillsAdmin();
+
+    el('connexionSection').style.display = isAdmin ? 'block' : 'none';
+    el('adminSection').style.display = isAdmin ? 'block' : 'none';
+    el('myProfileSection').style.display = isAdmin ? 'none' : 'block';
+    el('myAgentsSection').style.display = isAdmin ? 'none' : 'block';
+
+    if (isAdmin){
+      el('cfgChatUrl').value = state.config.chatUrl;
+      el('cfgHistUrl').value = state.config.histUrl;
+      el('cfgClientId').value = state.config.clientId;
+      el('cfgClientName').value = state.config.clientName;
+      el('cfgAdminUrl').value = state.config.adminUrl;
+      loadEmployees();
+      loadAgentsAdmin();
+      loadSkillsAdmin();
+    }else{
+      if (state.employee){
+        el('profileInfo').textContent = state.employee.name + ' · ' + state.employee.email + ' · ' + state.employee.role;
+      }
+      loadMyAgents();
+    }
   }
   function closeSettingsPage(){
     el('settingsPage').style.display = 'none';
