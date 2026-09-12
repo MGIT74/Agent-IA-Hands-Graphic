@@ -1046,7 +1046,7 @@
       return;
     }
     try{
-      const data = await adminFetch('get_agent_stats');
+      const data = await adminFetch('get_agent_stats', { employee_id: state.employee ? state.employee.id : '' });
       const stats = data.stats || [];
       const totalAgents = stats.length;
       const tasksToday = stats.reduce((sum,s) => sum + (s.tasks_today||0), 0);
