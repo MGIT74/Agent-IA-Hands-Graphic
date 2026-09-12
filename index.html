@@ -97,6 +97,36 @@
   }
   .schedule-item .actions button:hover{ background:var(--accent-dim); }
 
+  /* ===== Calendrier éditorial ===== */
+  .calendar-header{ display:flex; align-items:center; justify-content:center; gap:18px; margin-bottom:16px; }
+  .calendar-nav-btn{
+    background:var(--panel-raised); border:1px solid var(--border); border-radius:8px;
+    width:32px; height:32px; cursor:pointer; font-size:16px; color:var(--text); line-height:1;
+  }
+  .calendar-nav-btn:hover{ background:var(--accent-dim); }
+  .calendar-month-label{ font-family:var(--font-display); font-weight:600; font-size:15px; min-width:160px; text-align:center; color:var(--text); }
+  .calendar-grid{ display:grid; grid-template-columns:repeat(7, 1fr); gap:6px; }
+  .calendar-weekday{ text-align:center; font-size:10.5px; color:var(--text-muted); font-weight:600; padding-bottom:6px; text-transform:uppercase; letter-spacing:0.3px; }
+  .calendar-day{
+    background:var(--panel-raised); border:1px solid var(--border); border-radius:10px;
+    min-height:92px; padding:6px; cursor:pointer; display:flex; flex-direction:column; gap:3px;
+    position:relative; transition:border-color .12s ease;
+  }
+  .calendar-day:hover{ border-color:var(--accent); }
+  .calendar-day.other-month{ opacity:0.35; }
+  .calendar-day.today{ border-color:var(--accent); border-width:2px; }
+  .calendar-day .day-num{ font-size:11.5px; font-weight:600; color:var(--text); }
+  .calendar-post-chip{
+    font-size:9.5px; padding:2px 5px; border-radius:5px; color:#fff; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; cursor:pointer; font-weight:500;
+  }
+  .calendar-day .add-post-btn{
+    position:absolute; top:4px; right:4px; opacity:0; background:none; border:none;
+    color:var(--text-muted); font-size:15px; cursor:pointer; line-height:1; padding:2px;
+  }
+  .calendar-day:hover .add-post-btn{ opacity:1; }
+  .calendar-day .add-post-btn:hover{ color:var(--accent); }
+
   /* focus visibility */
   button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible{
     outline:2px solid var(--accent); outline-offset:2px;
@@ -723,6 +753,65 @@
       <h2>Tes tâches planifiées</h2>
       <div id="scheduledTasksList"><p class="admin-empty">Chargement…</p></div>
     </section>
+
+    <section class="settings-section">
+      <h2>Calendrier éditorial</h2>
+      <p class="hint">Planifie tes posts réseaux sociaux, jour par jour.</p>
+      <div class="calendar-header">
+        <button type="button" id="calendarPrev" class="calendar-nav-btn">‹</button>
+        <span class="calendar-month-label" id="calendarMonthLabel"></span>
+        <button type="button" id="calendarNext" class="calendar-nav-btn">›</button>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </section>
+  </div>
+</div>
+
+<div class="overlay" id="postModal" style="display:none;">
+  <div class="drawer" style="max-width:440px;">
+    <h2 id="postModalTitle">Nouveau post</h2>
+    <form id="postForm">
+      <input type="hidden" id="postId">
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="postDate" required>
+      </div>
+      <div class="field">
+        <label>Titre</label>
+        <input type="text" id="postTitle" placeholder="Ex: Annonce nouvelle fonctionnalité" required>
+      </div>
+      <div class="field">
+        <label>Plateforme</label>
+        <select id="postPlatform">
+          <option value="instagram">Instagram</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="facebook">Facebook</option>
+          <option value="tiktok">TikTok</option>
+          <option value="twitter">X / Twitter</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Statut</label>
+        <select id="postStatus">
+          <option value="idee">Idée</option>
+          <option value="a_faire">À faire</option>
+          <option value="pret">Prêt</option>
+          <option value="publie">Publié</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Contenu / notes</label>
+        <textarea id="postContent" rows="4" style="width:100%; background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:9px 10px; font-family:var(--font-body); font-size:13px; resize:vertical;" placeholder="Brouillon du post, idées, lien..."></textarea>
+      </div>
+      <div class="drawer-actions" style="justify-content:space-between;">
+        <button type="button" class="admin-delete-btn" id="postDeleteBtn" style="display:none; padding:9px 14px;">Supprimer</button>
+        <div style="display:flex; gap:10px; margin-left:auto;">
+          <button class="btn-ghost" id="postCancelBtn" type="button">Annuler</button>
+          <button class="btn-primary" type="submit">Enregistrer</button>
+        </div>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -2017,6 +2106,7 @@
       el('taskAgentSelect').innerHTML = agents.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
     }catch(e){ /* ignore */ }
     loadScheduledTasks();
+    loadCalendarPosts();
   }
   function closeScheduledPage(){
     el('scheduledPage').style.display = 'none';
@@ -2092,6 +2182,138 @@
       el('createScheduleForm').reset();
       populateTaskHourSelect();
       loadScheduledTasks();
+    }catch(err){
+      customAlert('Erreur : ' + err.message);
+    }
+  });
+
+  // ---- calendrier éditorial ----
+  const PLATFORM_COLORS = { instagram:'#E1306C', linkedin:'#0A66C2', facebook:'#1877F2', tiktok:'#111827', twitter:'#1DA1F2', autre:'#6B7280' };
+  const WEEKDAY_LABELS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  const MONTH_LABELS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  let calendarMonth = new Date(); calendarMonth.setDate(1);
+  let calendarPosts = [];
+
+  function ymd(date){
+    return date.getFullYear() + '-' + String(date.getMonth()+1).padStart(2,'0') + '-' + String(date.getDate()).padStart(2,'0');
+  }
+  function monthKey(date){
+    return date.getFullYear() + '-' + String(date.getMonth()+1).padStart(2,'0');
+  }
+
+  async function loadCalendarPosts(){
+    try{
+      const data = await adminFetch('list_editorial_posts', { employee_id: state.employee.id, post_month: monthKey(calendarMonth) });
+      calendarPosts = data.posts || [];
+    }catch(e){
+      calendarPosts = [];
+    }
+    renderCalendar();
+  }
+
+  function renderCalendar(){
+    el('calendarMonthLabel').textContent = MONTH_LABELS[calendarMonth.getMonth()] + ' ' + calendarMonth.getFullYear();
+    const grid = el('calendarGrid');
+    grid.innerHTML = '';
+    WEEKDAY_LABELS.forEach(w => {
+      const el2 = document.createElement('div');
+      el2.className = 'calendar-weekday';
+      el2.textContent = w;
+      grid.appendChild(el2);
+    });
+
+    const firstOfMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+    const startOffset = (firstOfMonth.getDay() + 6) % 7; // lundi = 0
+    const gridStart = new Date(firstOfMonth);
+    gridStart.setDate(gridStart.getDate() - startOffset);
+
+    const todayStr = ymd(new Date());
+    const postsByDate = {};
+    calendarPosts.forEach(p => {
+      const key = String(p.post_date).slice(0,10);
+      if (!postsByDate[key]) postsByDate[key] = [];
+      postsByDate[key].push(p);
+    });
+
+    for (let i = 0; i < 42; i++){
+      const cellDate = new Date(gridStart);
+      cellDate.setDate(cellDate.getDate() + i);
+      const cellStr = ymd(cellDate);
+      const isOtherMonth = cellDate.getMonth() !== calendarMonth.getMonth();
+      const cell = document.createElement('div');
+      cell.className = 'calendar-day' + (isOtherMonth ? ' other-month' : '') + (cellStr === todayStr ? ' today' : '');
+      cell.innerHTML = `<span class="day-num">${cellDate.getDate()}</span><button type="button" class="add-post-btn" title="Ajouter un post">+</button>`;
+      const posts = postsByDate[cellStr] || [];
+      posts.forEach(p => {
+        const chip = document.createElement('div');
+        chip.className = 'calendar-post-chip';
+        chip.style.background = PLATFORM_COLORS[p.platform] || PLATFORM_COLORS.autre;
+        chip.textContent = p.title;
+        chip.addEventListener('click', (e) => { e.stopPropagation(); openPostModal(cellStr, p); });
+        cell.appendChild(chip);
+      });
+      cell.querySelector('.add-post-btn').addEventListener('click', (e) => { e.stopPropagation(); openPostModal(cellStr, null); });
+      cell.addEventListener('click', () => openPostModal(cellStr, null));
+      grid.appendChild(cell);
+    }
+  }
+
+  function openPostModal(dateStr, post){
+    el('postModalTitle').textContent = post ? 'Modifier le post' : 'Nouveau post';
+    el('postId').value = post ? post.id : '';
+    el('postDate').value = dateStr;
+    el('postTitle').value = post ? post.title : '';
+    el('postPlatform').value = post ? post.platform : 'instagram';
+    el('postStatus').value = post ? post.status : 'idee';
+    el('postContent').value = post ? (post.content || '') : '';
+    el('postDeleteBtn').style.display = post ? 'inline-block' : 'none';
+    el('postModal').style.display = 'flex';
+  }
+  function closePostModal(){
+    el('postModal').style.display = 'none';
+  }
+
+  el('calendarPrev').addEventListener('click', () => {
+    calendarMonth.setMonth(calendarMonth.getMonth() - 1);
+    loadCalendarPosts();
+  });
+  el('calendarNext').addEventListener('click', () => {
+    calendarMonth.setMonth(calendarMonth.getMonth() + 1);
+    loadCalendarPosts();
+  });
+  el('postCancelBtn').addEventListener('click', closePostModal);
+  el('postModal').addEventListener('click', (e) => { if (e.target.id === 'postModal') closePostModal(); });
+
+  el('postForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const post_id = el('postId').value;
+    const payload = {
+      employee_id: state.employee.id,
+      post_id,
+      post_title: el('postTitle').value.trim(),
+      post_content: el('postContent').value.trim(),
+      post_platform: el('postPlatform').value,
+      post_date: el('postDate').value,
+      post_status: el('postStatus').value
+    };
+    if (!payload.post_title || !payload.post_date) return;
+    try{
+      await adminFetch(post_id ? 'update_editorial_post' : 'create_editorial_post', payload);
+      closePostModal();
+      loadCalendarPosts();
+    }catch(err){
+      customAlert('Erreur : ' + err.message);
+    }
+  });
+
+  el('postDeleteBtn').addEventListener('click', async () => {
+    const post_id = el('postId').value;
+    if (!post_id) return;
+    if (!(await customConfirm('Supprimer ce post ?'))) return;
+    try{
+      await adminFetch('delete_editorial_post', { employee_id: state.employee.id, post_id });
+      closePostModal();
+      loadCalendarPosts();
     }catch(err){
       customAlert('Erreur : ' + err.message);
     }
