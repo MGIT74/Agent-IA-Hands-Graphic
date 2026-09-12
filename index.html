@@ -426,12 +426,12 @@
       <p class="brand-sub" id="brandSub">Espace client</p>
     </div>
 
-    <div class="mode-switch">
+    <div class="mode-switch" style="display:none;">
       <button id="modeClientBtn" class="active">Vue client</button>
       <button id="modeAgencyBtn">Vue agence</button>
     </div>
 
-    <div class="client-picker" id="clientPicker">
+    <div class="client-picker" id="clientPicker" style="display:none;">
       <label for="clientSelect">Client (impersonation)</label>
       <select id="clientSelect"></select>
     </div>
@@ -753,9 +753,9 @@
   }
 
   function renderHeader(){
-    el('brandSub').textContent = state.mode === 'agency' ? 'Vue interne agence' : 'Espace client';
-    el('clientTag').textContent = state.config.clientId;
-    el('clientPicker').classList.toggle('show', state.mode === 'agency');
+    el('brandSub').textContent = (state.employee && state.employee.name) ? state.employee.name + ' · ' + state.employee.role : 'Usage interne';
+    el('clientTag').textContent = (state.employee && state.employee.name) || '';
+    el('clientPicker').classList.toggle('show', false);
   }
 
   // ---- Administration ----
@@ -978,19 +978,14 @@
     state.agentsLoaded = false;
     state.agents = [];
     renderAgentList();
-    if (!state.config.chatUrl){
+    if (!state.config.adminUrl || !state.employee){
       state.agentsLoaded = true;
       renderAgentList();
       renderDashboard();
       return;
     }
     try{
-      const res = await fetch(state.config.chatUrl, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ action:'list_agents', client_id: state.config.clientId })
-      });
-      const data = await res.json();
+      const data = await adminFetch('list_my_agents', { employee_id: state.employee.id });
       state.agents = (data.agents || []).map(a => ({ id: a.external_ref, name: a.name, desc: a.description }));
     }catch(e){
       state.agents = [];
@@ -1687,8 +1682,10 @@
   function startApp(){
     el('loginScreen').style.display = 'none';
     el('app').style.display = 'flex';
+    state.mode = 'agency';
+    state.config.clientId = 'internal_agency';
+    state.config.clientName = 'Usage interne';
     renderHeader();
-    renderClientSelect();
     loadAgentsForClient();
   }
 
