@@ -66,6 +66,8 @@
   .settings-section h2{ font-family:var(--font-display); font-size:15px; margin:0 0 4px; color:var(--text); }
   .settings-section .hint{ color:var(--text-muted); font-size:12.5px; margin:0 0 16px; line-height:1.5; }
 
+  .dialog-message{ font-size:14px; color:var(--text); line-height:1.5; margin:0 0 20px; }
+
   /* focus visibility */
   button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible{
     outline:2px solid var(--accent); outline-offset:2px;
@@ -615,9 +617,59 @@
   </div>
 </div>
 
+<div class="overlay" id="customDialog" style="display:none;">
+  <div class="drawer" style="max-width:380px;">
+    <p class="dialog-message" id="dialogMessage"></p>
+    <div class="drawer-actions" id="dialogActions">
+      <button class="btn-ghost" id="dialogCancel" type="button">Annuler</button>
+      <button class="btn-primary" id="dialogOk" type="button">OK</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   const params = new URLSearchParams(window.location.search);
+
+  // ---- boîtes de dialogue personnalisées (remplacent confirm()/alert() natifs du navigateur) ----
+  function customConfirm(message){
+    return new Promise((resolve) => {
+      const dialog = document.getElementById('customDialog');
+      document.getElementById('dialogMessage').textContent = message;
+      document.getElementById('dialogCancel').style.display = 'inline-block';
+      document.getElementById('dialogOk').textContent = 'Confirmer';
+      dialog.style.display = 'flex';
+      const okBtn = document.getElementById('dialogOk');
+      const cancelBtn = document.getElementById('dialogCancel');
+      const cleanup = (result) => {
+        dialog.style.display = 'none';
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        resolve(result);
+      };
+      const onOk = () => cleanup(true);
+      const onCancel = () => cleanup(false);
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+    });
+  }
+
+  function customAlert(message){
+    return new Promise((resolve) => {
+      const dialog = document.getElementById('customDialog');
+      document.getElementById('dialogMessage').textContent = message;
+      document.getElementById('dialogCancel').style.display = 'none';
+      document.getElementById('dialogOk').textContent = 'OK';
+      dialog.style.display = 'flex';
+      const okBtn = document.getElementById('dialogOk');
+      const onOk = () => {
+        dialog.style.display = 'none';
+        okBtn.removeEventListener('click', onOk);
+        resolve();
+      };
+      okBtn.addEventListener('click', onOk);
+    });
+  }
 
   // ---- état en mémoire (pas de localStorage, reset au reload volontairement :
   // la vraie persistance vit côté n8n/Supabase) ----
@@ -748,12 +800,12 @@
       if (isAdmin){
         list.querySelectorAll('[data-delete-employee]').forEach(btn => {
           btn.addEventListener('click', async () => {
-            if (!confirm("Supprimer cet employé ? Les agents qu'il gérait resteront disponibles pour les autres employés.")) return;
+            if (!(await customConfirm("Supprimer cet employé ? Les agents qu'il gérait resteront disponibles pour les autres employés."))) return;
             try{
               await adminFetch('delete_employee', { employee_id: state.employee.id, target_employee_id: btn.getAttribute('data-delete-employee') });
               loadEmployees();
             }catch(err){
-              alert("Erreur : " + err.message);
+              customAlert("Erreur : " + err.message);
             }
           });
         });
@@ -823,13 +875,13 @@
       if (isAdmin){
         list.querySelectorAll('[data-delete-agent]').forEach(btn => {
           btn.addEventListener('click', async () => {
-            if (!confirm('Supprimer cet agent ? Il ne sera plus accessible pour les clients ni les employés.')) return;
+            if (!(await customConfirm('Supprimer cet agent ? Il ne sera plus accessible pour les clients ni les employés.'))) return;
             try{
               await adminFetch('delete_agent', { employee_id: state.employee.id, agent_id: btn.getAttribute('data-delete-agent') });
               loadAgentsAdmin();
               loadAgentsForClient();
             }catch(err){
-              alert("Erreur : " + err.message);
+              customAlert("Erreur : " + err.message);
             }
           });
         });
@@ -1108,9 +1160,9 @@
     }
   }
 
-  function newConversation(){
+  async function newConversation(){
     const agentId = state.currentAgentId;
-    if (!agentId){ alert("Choisis d'abord un agent dans la liste."); return; }
+    if (!agentId){ await customAlert("Choisis d'abord un agent dans la liste."); return; }
     const newId = uuid();
     storedSessionIds[sessionMapKey(agentId)] = newId;
     saveStoredSessionIds(storedSessionIds);
@@ -1166,7 +1218,7 @@
         item.querySelector('.date').addEventListener('click', () => switchToConversation(state.currentAgentId, conv.session_id));
         item.querySelector('.conv-delete-btn').addEventListener('click', async (e) => {
           e.stopPropagation();
-          if (!confirm('Supprimer définitivement cette conversation ?')) return;
+          if (!(await customConfirm('Supprimer définitivement cette conversation ?'))) return;
           try{
             await fetch(state.config.chatUrl, {
               method:'POST',
@@ -1176,7 +1228,7 @@
             if (conv.session_id === currentSessionId){ newConversation(); }
             loadConversationList();
           }catch(err){
-            alert("Erreur lors de la suppression : " + err.message);
+            customAlert("Erreur lors de la suppression : " + err.message);
           }
         });
         list.appendChild(item);
@@ -1361,16 +1413,16 @@
   }
 
   el('attachBtn').addEventListener('click', () => el('attachmentInput').click());
-  el('attachmentInput').addEventListener('change', (e) => {
+  el('attachmentInput').addEventListener('change', async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     if (file.type.startsWith('video/')){
-      alert("Les fichiers vidéo ne sont pas pris en charge.");
+      await customAlert("Les fichiers vidéo ne sont pas pris en charge.");
       el('attachmentInput').value = '';
       return;
     }
     if (file.size > MAX_ATTACHMENT_BYTES){
-      alert("Fichier trop volumineux (max 4 Mo).");
+      await customAlert("Fichier trop volumineux (max 4 Mo).");
       el('attachmentInput').value = '';
       return;
     }
@@ -1381,7 +1433,7 @@
       state.pendingAttachment = { name: file.name, type: file.type || 'application/octet-stream', base64: base64 };
       renderAttachmentPreview();
     };
-    reader.onerror = () => alert("Impossible de lire ce fichier.");
+    reader.onerror = () => customAlert("Impossible de lire ce fichier.");
     reader.readAsDataURL(file);
   });
 
@@ -1458,10 +1510,10 @@
 
   el('settingsBtn').addEventListener('click', openSettingsPage);
   el('backFromSettings').addEventListener('click', closeSettingsPage);
-  el('logoutBtn').addEventListener('click', () => {
-    if (confirm('Se déconnecter ?')) logout();
+  el('logoutBtn').addEventListener('click', async () => {
+    if (await customConfirm('Se déconnecter ?')) logout();
   });
-  el('saveSettings').addEventListener('click', () => {
+  el('saveSettings').addEventListener('click', async () => {
     state.config.chatUrl = el('cfgChatUrl').value.trim();
     state.config.histUrl = el('cfgHistUrl').value.trim();
     state.config.adminUrl = el('cfgAdminUrl').value.trim();
@@ -1471,7 +1523,7 @@
     renderHeader();
     if (state.currentAgentId) el('agentCtx').textContent = state.config.clientName + ' · ' + state.config.clientId;
     loadAgentsForClient();
-    alert('Paramètres enregistrés.');
+    await customAlert('Paramètres enregistrés.');
   });
 
   el('createEmployeeForm').addEventListener('submit', async (e) => {
@@ -1487,7 +1539,7 @@
       loadEmployees();
       loadAgentsAdmin();
     }catch(err){
-      alert("Erreur : " + err.message);
+      customAlert("Erreur : " + err.message);
     }
   });
 
@@ -1500,7 +1552,7 @@
       await adminFetch('assign_agent', { employee_id, agent_id });
       loadEmployees();
     }catch(err){
-      alert("Erreur : " + err.message);
+      customAlert("Erreur : " + err.message);
     }
   });
 
@@ -1511,9 +1563,9 @@
     if (!target_client_id || !agent_id) return;
     try{
       await adminFetch('assign_agent_to_client', { target_client_id, agent_id });
-      alert("Accès accordé. Le client peut maintenant discuter avec cet agent.");
+      customAlert("Accès accordé. Le client peut maintenant discuter avec cet agent.");
     }catch(err){
-      alert("Erreur : " + err.message);
+      customAlert("Erreur : " + err.message);
     }
   });
 
@@ -1529,7 +1581,7 @@
       el('newAgentName').value = ''; el('newAgentDesc').value = ''; el('newAgentPrompt').value = '';
       loadAgentsAdmin();
     }catch(err){
-      alert("Erreur : " + err.message);
+      customAlert("Erreur : " + err.message);
     }
   });
 
@@ -1543,7 +1595,7 @@
       el('newSkillName').value = ''; el('newSkillContent').value = '';
       loadSkillsAdmin();
     }catch(err){
-      alert("Erreur : " + err.message);
+      customAlert("Erreur : " + err.message);
     }
   });
 
@@ -1554,9 +1606,9 @@
     if (!agent_id || !skill_id) return;
     try{
       await adminFetch('assign_skill', { agent_id, skill_id });
-      alert("Skill assigné avec succès.");
+      customAlert("Skill assigné avec succès.");
     }catch(err){
-      alert("Erreur : " + err.message);
+      customAlert("Erreur : " + err.message);
     }
   });
 
@@ -1590,7 +1642,7 @@
   el('publishArtifact').addEventListener('click', async () => {
     if (!state.lastArtifactHtml) return;
     if (!state.config.adminUrl){
-      alert("La publication en ligne n'est pas encore configurée. Renseigne l'URL webhook admin dans ⚙ Configuration, ou télécharge le fichier pour l'héberger toi-même en attendant.");
+      await customAlert("La publication en ligne n'est pas encore configurée. Renseigne l'URL webhook admin dans ⚙ Configuration, ou télécharge le fichier pour l'héberger toi-même en attendant.");
       return;
     }
     const btn = el('publishArtifact');
@@ -1606,13 +1658,13 @@
       const data = await res.json();
       if (data.url){
         btn.textContent = 'Publié ✓';
-        alert("Site publié : " + data.url);
+        await customAlert("Site publié : " + data.url);
       }else{
         throw new Error(data.error || 'réponse inattendue');
       }
     }catch(e){
       btn.textContent = originalText;
-      alert("Erreur lors de la publication : " + e.message + "\n\n(Cette action nécessite encore d'être configurée côté n8n.)");
+      await customAlert("Erreur lors de la publication : " + e.message + "\n\n(Cette action nécessite encore d'être configurée côté n8n.)");
     }
     setTimeout(() => { btn.disabled = false; if (btn.textContent === 'Publication…') btn.textContent = originalText; }, 2000);
   });
@@ -1676,9 +1728,9 @@
     location.reload();
   }
 
-  el('newChatSidebarBtn').addEventListener('click', () => {
+  el('newChatSidebarBtn').addEventListener('click', async () => {
     if (!state.currentAgentId){ newConversation(); return; }
-    if (confirm("Démarrer une nouvelle discussion ? Tu pourras retrouver la précédente dans l'historique.")) newConversation();
+    if (await customConfirm("Démarrer une nouvelle discussion ? Tu pourras retrouver la précédente dans l'historique.")) newConversation();
   });
 
   // ---- init ----
