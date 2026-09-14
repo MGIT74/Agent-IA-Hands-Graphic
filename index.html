@@ -59,7 +59,16 @@
     position:sticky; top:0; z-index:5;
   }
   .settings-header h1{ font-family:var(--font-display); font-size:16px; margin:0; color:var(--text); }
-  .settings-body{ max-width:1100px; margin:0 auto; padding:26px; display:flex; flex-direction:column; gap:26px; }
+  .settings-layout{ max-width:1200px; margin:0 auto; padding:26px; display:flex; gap:28px; align-items:flex-start; }
+  .settings-nav{ display:flex; flex-direction:column; gap:2px; width:180px; flex-shrink:0; position:sticky; top:26px; }
+  .settings-nav-btn{
+    text-align:left; background:none; border:none; color:var(--text-muted);
+    padding:9px 12px; border-radius:8px; font-size:13.5px; cursor:pointer; font-family:var(--font-body);
+  }
+  .settings-nav-btn:hover{ background:var(--panel-raised); color:var(--text); }
+  .settings-nav-btn.active{ background:var(--accent-dim); color:var(--accent); font-weight:600; }
+  .settings-content{ flex:1; min-width:0; display:flex; flex-direction:column; gap:20px; }
+  .settings-tab-panel{ width:100%; }
   .settings-section{
     background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:22px 24px;
   }
@@ -570,131 +579,138 @@
     <button type="button" id="logoutBtn" class="btn-ghost">Se déconnecter</button>
   </div>
 
-  <div class="settings-body">
-    <section class="settings-section" id="connexionSection">
-      <h2>Connexion</h2>
-      <p class="hint">En production, ces valeurs viennent d'un lien signé généré après achat. Modifie-les seulement si tu sais ce que tu fais.</p>
-      <div class="field">
-        <label>URL webhook n8n — chat</label>
-        <input id="cfgChatUrl" placeholder="https://ton-n8n.exemple.com/webhook/agent-chat">
-      </div>
-      <div class="field">
-        <label>URL webhook n8n — historique (optionnel, réutilise l'URL de chat si vide)</label>
-        <input id="cfgHistUrl" placeholder="Laisse vide pour réutiliser l'URL de chat ci-dessus">
-      </div>
-      <div class="field">
-        <label>Client ID</label>
-        <input id="cfgClientId" placeholder="client_demo_01">
-      </div>
-      <div class="field">
-        <label>Nom du client (affichage)</label>
-        <input id="cfgClientName" placeholder="Agence Dupont">
-      </div>
-      <div class="field">
-        <label>URL webhook n8n — admin</label>
-        <input id="cfgAdminUrl" placeholder="https://ton-n8n.exemple.com/webhook/admin">
-      </div>
-      <button class="btn-primary" id="saveSettings" type="button">Enregistrer</button>
-    </section>
+  <div class="settings-layout">
+    <nav class="settings-nav" id="settingsNavAdmin" style="display:none;">
+      <button type="button" class="settings-nav-btn active" data-settings-tab="connexion">Connexion</button>
+      <button type="button" class="settings-nav-btn" data-settings-tab="employees">Employés</button>
+      <button type="button" class="settings-nav-btn" data-settings-tab="agents">Agents</button>
+      <button type="button" class="settings-nav-btn" data-settings-tab="skills">Skills</button>
+    </nav>
+    <nav class="settings-nav" id="settingsNavEmployee" style="display:none;">
+      <button type="button" class="settings-nav-btn active" data-settings-tab="profile">Mon profil</button>
+      <button type="button" class="settings-nav-btn" data-settings-tab="my-agents">Mes agents</button>
+    </nav>
 
-    <section class="settings-section" id="myProfileSection" style="display:none;">
-      <h2>Mon profil</h2>
-      <p class="hint" id="profileInfo"></p>
-    </section>
-
-    <section class="settings-section" id="myAgentsSection" style="display:none;">
-      <h2>Mes agents</h2>
-      <p class="hint">Renomme tes agents, gère leurs compétences, ou ajoute-en une nouvelle (partagée avec toute l'agence).</p>
-      <div id="myAgentsList"></div>
-    </section>
-
-    <section class="settings-section" id="adminSection">
-      <h2>Administration</h2>
-      <p class="hint">Gère les employés de l'agence, les agents et leurs compétences.</p>
-
-      <div class="admin-columns">
-        <div class="admin-col">
-          <h3>Employés</h3>
-          <form class="admin-form" id="createEmployeeForm">
-            <input id="newEmpName" placeholder="Nom" required>
-            <input id="newEmpEmail" type="email" placeholder="Email" required>
-            <input id="newEmpPassword" type="password" placeholder="Mot de passe initial" required>
-            <select id="newEmpRole">
-              <option value="agent_manager">Gestionnaire d'agents</option>
-              <option value="admin">Admin</option>
-            </select>
-            <button type="submit">+ Ajouter un employé</button>
-          </form>
-          <div class="admin-list" id="employeesList"><p class="admin-empty">Chargement…</p></div>
+    <div class="settings-content">
+      <section class="settings-section settings-tab-panel" id="tab-connexion">
+        <h2>Connexion</h2>
+        <p class="hint">En production, ces valeurs viennent d'un lien signé généré après achat. Modifie-les seulement si tu sais ce que tu fais.</p>
+        <div class="field">
+          <label>URL webhook n8n — chat</label>
+          <input id="cfgChatUrl" placeholder="https://ton-n8n.exemple.com/webhook/agent-chat">
         </div>
+        <div class="field">
+          <label>URL webhook n8n — historique (optionnel, réutilise l'URL de chat si vide)</label>
+          <input id="cfgHistUrl" placeholder="Laisse vide pour réutiliser l'URL de chat ci-dessus">
+        </div>
+        <div class="field">
+          <label>Client ID</label>
+          <input id="cfgClientId" placeholder="client_demo_01">
+        </div>
+        <div class="field">
+          <label>Nom du client (affichage)</label>
+          <input id="cfgClientName" placeholder="Agence Dupont">
+        </div>
+        <div class="field">
+          <label>URL webhook n8n — admin</label>
+          <input id="cfgAdminUrl" placeholder="https://ton-n8n.exemple.com/webhook/admin">
+        </div>
+        <button class="btn-primary" id="saveSettings" type="button">Enregistrer</button>
+      </section>
 
-        <div class="admin-col">
-          <h3>Agents</h3>
-          <form class="admin-form" id="createAgentForm">
-            <input id="newAgentName" placeholder="Nom de l'agent" required>
-            <input id="newAgentDesc" placeholder="Description courte">
-            <textarea id="newAgentPrompt" placeholder="Prompt système (ex: Tu es l'agent facturation de {client_name}...)" rows="2" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:7px 9px; font-family:var(--font-body); font-size:12.5px; resize:vertical;"></textarea>
-            <select id="newAgentModel">
-              <optgroup label="Testés dans cette app">
-                <option value="gpt-oss:20b-cloud">gpt-oss:20b-cloud (rapide, recommandé par défaut)</option>
-                <option value="qwen3.5:cloud">qwen3.5:cloud (plus poussé, plus lent)</option>
-              </optgroup>
-              <optgroup label="Raisonnement poussé">
-                <option value="qwen3.5:397b-cloud">qwen3.5:397b-cloud</option>
-                <option value="deepseek-v4-flash:cloud">deepseek-v4-flash:cloud</option>
-                <option value="glm-5.2:cloud">glm-5.2:cloud</option>
-                <option value="kimi-k2.6:cloud">kimi-k2.6:cloud</option>
-                <option value="mistral-large-3:675b-cloud">mistral-large-3:675b-cloud</option>
-                <option value="nemotron-3-ultra:cloud">nemotron-3-ultra:cloud</option>
-                <option value="minimax-m3:cloud">minimax-m3:cloud</option>
-              </optgroup>
-              <optgroup label="Coding / agentique">
-                <option value="qwen3-coder:480b-cloud">qwen3-coder:480b-cloud</option>
-                <option value="kimi-k2.7-code:cloud">kimi-k2.7-code:cloud</option>
-                <option value="devstral-2:123b-cloud">devstral-2:123b-cloud</option>
-              </optgroup>
-              <optgroup label="Vision / multimodal">
-                <option value="qwen3-vl:235b-cloud">qwen3-vl:235b-cloud</option>
-              </optgroup>
-              <optgroup label="Léger et rapide">
-                <option value="gemma4:cloud">gemma4:cloud</option>
-                <option value="nemotron-3-nano:30b-cloud">nemotron-3-nano:30b-cloud</option>
-                <option value="ministral-3:cloud">ministral-3:cloud</option>
-              </optgroup>
-              <optgroup label="Self-host (ton propre serveur)">
-                <option value="llama3.2">llama3.2</option>
-              </optgroup>
-            </select>
-            <button type="submit">+ Créer un agent</button>
-          </form>
-          <form class="admin-form" id="assignAgentForm">
-            <select id="assignEmpSelect"></select>
-            <select id="assignAgentSelect"></select>
-            <button type="submit">Assigner à un employé (interne)</button>
-          </form>
-          <form class="admin-form" id="assignClientForm">
-            <select id="assignClientSelect"></select>
-            <select id="assignAgentClientSelect"></select>
-            <button type="submit">Donner accès à un client</button>
-          </form>
-          <div class="admin-list" id="agentsAdminList"><p class="admin-empty">Chargement…</p></div>
-        </div>
-        <div class="admin-col">
-          <h3>Skills</h3>
-          <form class="admin-form" id="createSkillForm">
-            <input id="newSkillName" placeholder="Nom du skill (ex: Design landing page)" required>
-            <textarea id="newSkillContent" placeholder="Instructions expertes détaillées à injecter dans le prompt de l'agent quand ce skill est actif..." rows="4" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:7px 9px; font-family:var(--font-body); font-size:12.5px; resize:vertical;" required></textarea>
-            <button type="submit">+ Créer un skill</button>
-          </form>
-          <form class="admin-form" id="assignSkillForm">
-            <select id="assignSkillAgentSelect"></select>
-            <select id="assignSkillSelect"></select>
-            <button type="submit">Assigner ce skill</button>
-          </form>
-          <div class="admin-list" id="skillsAdminList"><p class="admin-empty">Chargement…</p></div>
-        </div>
-      </div>
-    </section>
+      <section class="settings-section settings-tab-panel" id="tab-profile" style="display:none;">
+        <h2>Mon profil</h2>
+        <p class="hint" id="profileInfo"></p>
+      </section>
+
+      <section class="settings-section settings-tab-panel" id="tab-my-agents" style="display:none;">
+        <h2>Mes agents</h2>
+        <p class="hint">Renomme tes agents, change leur modèle, gère leurs compétences, ou ajoute-en une nouvelle (partagée avec toute l'agence).</p>
+        <div id="myAgentsList"></div>
+      </section>
+
+      <section class="settings-section settings-tab-panel" id="tab-employees" style="display:none;">
+        <h2>Employés</h2>
+        <form class="admin-form" id="createEmployeeForm">
+          <input id="newEmpName" placeholder="Nom" required>
+          <input id="newEmpEmail" type="email" placeholder="Email" required>
+          <input id="newEmpPassword" type="password" placeholder="Mot de passe initial" required>
+          <select id="newEmpRole">
+            <option value="agent_manager">Gestionnaire d'agents</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button type="submit">+ Ajouter un employé</button>
+        </form>
+        <div class="admin-list" id="employeesList"><p class="admin-empty">Chargement…</p></div>
+      </section>
+
+      <section class="settings-section settings-tab-panel" id="tab-agents" style="display:none;">
+        <h2>Agents</h2>
+        <form class="admin-form" id="createAgentForm">
+          <input id="newAgentName" placeholder="Nom de l'agent" required>
+          <input id="newAgentDesc" placeholder="Description courte">
+          <textarea id="newAgentPrompt" placeholder="Prompt système (ex: Tu es l'agent facturation de {client_name}...)" rows="2" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:7px 9px; font-family:var(--font-body); font-size:12.5px; resize:vertical;"></textarea>
+          <select id="newAgentModel">
+            <optgroup label="Testés dans cette app">
+              <option value="gpt-oss:20b-cloud">gpt-oss:20b-cloud (rapide, recommandé par défaut)</option>
+              <option value="qwen3.5:cloud">qwen3.5:cloud (plus poussé, plus lent)</option>
+            </optgroup>
+            <optgroup label="Raisonnement poussé">
+              <option value="qwen3.5:397b-cloud">qwen3.5:397b-cloud</option>
+              <option value="deepseek-v4-flash:cloud">deepseek-v4-flash:cloud</option>
+              <option value="glm-5.2:cloud">glm-5.2:cloud</option>
+              <option value="kimi-k2.6:cloud">kimi-k2.6:cloud</option>
+              <option value="mistral-large-3:675b-cloud">mistral-large-3:675b-cloud</option>
+              <option value="nemotron-3-ultra:cloud">nemotron-3-ultra:cloud</option>
+              <option value="minimax-m3:cloud">minimax-m3:cloud</option>
+            </optgroup>
+            <optgroup label="Coding / agentique">
+              <option value="qwen3-coder:480b-cloud">qwen3-coder:480b-cloud</option>
+              <option value="kimi-k2.7-code:cloud">kimi-k2.7-code:cloud</option>
+              <option value="devstral-2:123b-cloud">devstral-2:123b-cloud</option>
+            </optgroup>
+            <optgroup label="Vision / multimodal">
+              <option value="qwen3-vl:235b-cloud">qwen3-vl:235b-cloud</option>
+            </optgroup>
+            <optgroup label="Léger et rapide">
+              <option value="gemma4:cloud">gemma4:cloud</option>
+              <option value="nemotron-3-nano:30b-cloud">nemotron-3-nano:30b-cloud</option>
+              <option value="ministral-3:cloud">ministral-3:cloud</option>
+            </optgroup>
+            <optgroup label="Self-host (ton propre serveur)">
+              <option value="llama3.2">llama3.2</option>
+            </optgroup>
+          </select>
+          <button type="submit">+ Créer un agent</button>
+        </form>
+        <form class="admin-form" id="assignAgentForm">
+          <select id="assignEmpSelect"></select>
+          <select id="assignAgentSelect"></select>
+          <button type="submit">Assigner à un employé (interne)</button>
+        </form>
+        <form class="admin-form" id="assignClientForm">
+          <select id="assignClientSelect"></select>
+          <select id="assignAgentClientSelect"></select>
+          <button type="submit">Donner accès à un client</button>
+        </form>
+        <div class="admin-list" id="agentsAdminList"><p class="admin-empty">Chargement…</p></div>
+      </section>
+
+      <section class="settings-section settings-tab-panel" id="tab-skills" style="display:none;">
+        <h2>Skills</h2>
+        <form class="admin-form" id="createSkillForm">
+          <input id="newSkillName" placeholder="Nom du skill (ex: Design landing page)" required>
+          <textarea id="newSkillContent" placeholder="Instructions expertes détaillées à injecter dans le prompt de l'agent quand ce skill est actif..." rows="4" style="background:var(--panel); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:7px 9px; font-family:var(--font-body); font-size:12.5px; resize:vertical;" required></textarea>
+          <button type="submit">+ Créer un skill</button>
+        </form>
+        <form class="admin-form" id="assignSkillForm">
+          <select id="assignSkillAgentSelect"></select>
+          <select id="assignSkillSelect"></select>
+          <button type="submit">Assigner ce skill</button>
+        </form>
+        <div class="admin-list" id="skillsAdminList"><p class="admin-empty">Chargement…</p></div>
+      </section>
+    </div>
   </div>
 </div>
 
@@ -1098,6 +1114,7 @@
 
       if (agents.length === 0){ list.innerHTML = '<p class="admin-empty">Aucun agent en base.</p>'; return; }
       const isAdmin = state.employee && state.employee.role === 'admin';
+      const catalogOptionsHtml = el('newAgentModel').innerHTML;
       list.innerHTML = '';
       agents.forEach(agent => {
         const item = document.createElement('div');
@@ -1112,8 +1129,18 @@
           <div class="agent-rename">
             <input type="text" value="${escapeHtml(agent.name)}" data-agent-id="${agent.id}">
             <button type="button" data-rename-for="${agent.id}">Renommer</button>
+          </div>
+          <p class="sub" style="margin-top:8px;">Modèle actif : <strong>${escapeHtml(agent.model || '?')}</strong></p>
+          <div class="agent-rename">
+            <select data-model-select="${agent.id}"><option value="">Chargement…</option></select>
+            <button type="button" data-set-model-for="${agent.id}">Activer</button>
+          </div>
+          <div class="agent-rename" style="margin-top:4px;">
+            <select data-catalog-select="${agent.id}">${catalogOptionsHtml}</select>
+            <button type="button" data-add-model-for="${agent.id}">+ Ajouter au choix</button>
           </div>`;
         list.appendChild(item);
+        loadAgentModelsSelect(agent.id, list);
       });
       list.querySelectorAll('[data-rename-for]').forEach(btn => {
         btn.addEventListener('click', async () => {
@@ -1132,6 +1159,38 @@
           setTimeout(() => { btn.disabled = false; btn.textContent = 'Renommer'; }, 1500);
         });
       });
+      list.querySelectorAll('[data-set-model-for]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const agentId = btn.getAttribute('data-set-model-for');
+          const sel = list.querySelector(`select[data-model-select="${agentId}"]`);
+          const newModel = sel.value;
+          if (!newModel) return;
+          btn.disabled = true; btn.textContent = '...';
+          try{
+            await adminFetch('update_agent_model', { agent_id: agentId, new_model: newModel, employee_id: state.employee.id });
+            loadAgentsAdmin();
+          }catch(e){
+            customAlert('Erreur : ' + e.message);
+            btn.disabled = false; btn.textContent = 'Activer';
+          }
+        });
+      });
+      list.querySelectorAll('[data-add-model-for]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const agentId = btn.getAttribute('data-add-model-for');
+          const sel = list.querySelector(`select[data-catalog-select="${agentId}"]`);
+          const modelName = sel.value;
+          if (!modelName) return;
+          btn.disabled = true; btn.textContent = '...';
+          try{
+            await adminFetch('add_agent_model', { agent_id: agentId, new_model: modelName, employee_id: state.employee.id });
+            loadAgentModelsSelect(agentId, list);
+          }catch(e){
+            customAlert('Erreur : ' + e.message);
+          }
+          btn.disabled = false; btn.textContent = '+ Ajouter au choix';
+        });
+      });
       if (isAdmin){
         list.querySelectorAll('[data-delete-agent]').forEach(btn => {
           btn.addEventListener('click', async () => {
@@ -1148,6 +1207,18 @@
       }
     }catch(e){
       list.innerHTML = `<p class="admin-empty">Erreur : ${escapeHtml(e.message)}</p>`;
+    }
+  }
+
+  async function loadAgentModelsSelect(agentId, container){
+    const sel = container.querySelector(`select[data-model-select="${agentId}"]`);
+    if (!sel) return;
+    try{
+      const data = await adminFetch('list_agent_models', { agent_id: agentId });
+      const models = data.models || [];
+      sel.innerHTML = models.map(m => `<option value="${escapeHtml(m.model_name)}" ${m.is_active ? 'selected' : ''}>${escapeHtml(m.model_name)}${m.is_active ? ' (actif)' : ''}</option>`).join('');
+    }catch(e){
+      sel.innerHTML = '<option value="">Erreur de chargement</option>';
     }
   }
 
@@ -1196,6 +1267,7 @@
         return;
       }
       box.innerHTML = '';
+      const catalogOptionsHtml = el('newAgentModel').innerHTML;
       for (const agent of agents){
         const card = document.createElement('div');
         card.className = 'admin-item';
@@ -1206,6 +1278,15 @@
           <div class="agent-rename">
             <input type="text" value="${escapeHtml(agent.name)}" data-agent-name-input="${agent.id}">
             <button type="button" data-rename-agent="${agent.id}">Renommer</button>
+          </div>
+          <p class="sub" style="margin-top:10px;">Modèle actif : <strong>${escapeHtml(agent.model || '?')}</strong></p>
+          <div class="agent-rename">
+            <select data-model-select="${agent.id}"><option value="">Chargement…</option></select>
+            <button type="button" data-set-model-for="${agent.id}">Activer</button>
+          </div>
+          <div class="agent-rename" style="margin-top:4px;">
+            <select data-catalog-select="${agent.id}">${catalogOptionsHtml}</select>
+            <button type="button" data-add-model-for="${agent.id}">+ Ajouter au choix</button>
           </div>
           <p class="sub" style="margin-top:10px;">Skills actifs :</p>
           <div class="admin-chips" data-skills-chips="${agent.id}"><span class="sub">Chargement…</span></div>
@@ -1222,6 +1303,36 @@
             </form>
           </details>`;
         box.appendChild(card);
+
+        loadAgentModelsSelect(agent.id, card);
+        card.querySelector(`[data-set-model-for="${agent.id}"]`).addEventListener('click', async (e) => {
+          const btn = e.currentTarget;
+          const sel = card.querySelector(`select[data-model-select="${agent.id}"]`);
+          const newModel = sel.value;
+          if (!newModel) return;
+          btn.disabled = true; btn.textContent = '...';
+          try{
+            await adminFetch('update_agent_model', { agent_id: agent.id, new_model: newModel, employee_id: state.employee.id });
+            loadMyAgents();
+          }catch(err){
+            customAlert('Erreur : ' + err.message);
+            btn.disabled = false; btn.textContent = 'Activer';
+          }
+        });
+        card.querySelector(`[data-add-model-for="${agent.id}"]`).addEventListener('click', async (e) => {
+          const btn = e.currentTarget;
+          const sel = card.querySelector(`select[data-catalog-select="${agent.id}"]`);
+          const modelName = sel.value;
+          if (!modelName) return;
+          btn.disabled = true; btn.textContent = '...';
+          try{
+            await adminFetch('add_agent_model', { agent_id: agent.id, new_model: modelName, employee_id: state.employee.id });
+            loadAgentModelsSelect(agent.id, card);
+          }catch(err){
+            customAlert('Erreur : ' + err.message);
+          }
+          btn.disabled = false; btn.textContent = '+ Ajouter au choix';
+        });
 
         adminFetch('list_agent_skills', { agent_id: agent.id }).then(data => {
           const chipsBox = card.querySelector(`[data-skills-chips="${agent.id}"]`);
@@ -1843,17 +1954,24 @@
   });
 
   // ---- page Paramètres (plein écran, fusion Configuration + Administration) ----
+  function showSettingsTab(tabName){
+    document.querySelectorAll('.settings-tab-panel').forEach(el2 => { el2.style.display = 'none'; });
+    document.querySelectorAll('.settings-nav-btn').forEach(btn => btn.classList.remove('active'));
+    const panel = el('tab-' + tabName);
+    if (panel) panel.style.display = 'block';
+    document.querySelectorAll(`.settings-nav-btn[data-settings-tab="${tabName}"]`).forEach(btn => btn.classList.add('active'));
+  }
+
   function openSettingsPage(){
     const isAdmin = state.employee && state.employee.role === 'admin';
     el('app').style.display = 'none';
     el('settingsPage').style.display = 'block';
 
-    el('connexionSection').style.display = isAdmin ? 'block' : 'none';
-    el('adminSection').style.display = isAdmin ? 'block' : 'none';
-    el('myProfileSection').style.display = isAdmin ? 'none' : 'block';
-    el('myAgentsSection').style.display = isAdmin ? 'none' : 'block';
+    el('settingsNavAdmin').style.display = isAdmin ? 'flex' : 'none';
+    el('settingsNavEmployee').style.display = isAdmin ? 'none' : 'flex';
 
     if (isAdmin){
+      showSettingsTab('connexion');
       el('cfgChatUrl').value = state.config.chatUrl;
       el('cfgHistUrl').value = state.config.histUrl;
       el('cfgClientId').value = state.config.clientId;
@@ -1863,6 +1981,7 @@
       loadAgentsAdmin();
       loadSkillsAdmin();
     }else{
+      showSettingsTab('profile');
       if (state.employee){
         el('profileInfo').textContent = state.employee.name + ' · ' + state.employee.email + ' · ' + state.employee.role;
       }
@@ -1876,6 +1995,9 @@
 
   el('settingsBtn').addEventListener('click', openSettingsPage);
   el('backFromSettings').addEventListener('click', closeSettingsPage);
+  document.querySelectorAll('.settings-nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => showSettingsTab(btn.getAttribute('data-settings-tab')));
+  });
   el('logoutBtn').addEventListener('click', async () => {
     if (await customConfirm('Se déconnecter ?')) logout();
   });
