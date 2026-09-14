@@ -860,6 +860,18 @@
             <label>Nom du client</label>
             <input type="text" id="newClientName" placeholder="Ex: Restaurant Gourmet" required>
           </div>
+          <div class="field">
+            <label>Email de contact</label>
+            <input type="email" id="newClientEmail" placeholder="contact@exemple.com">
+          </div>
+          <div class="field">
+            <label>Téléphone</label>
+            <input type="tel" id="newClientPhone" placeholder="+33 6 12 34 56 78">
+          </div>
+          <div class="field">
+            <label>Site web</label>
+            <input type="url" id="newClientWebsite" placeholder="https://exemple.com">
+          </div>
           <button class="btn-primary" type="submit">+ Créer le client</button>
         </form>
       </section>
@@ -2368,8 +2380,39 @@
       clients.forEach(c => {
         const item = document.createElement('div');
         item.className = 'admin-item';
-        item.innerHTML = `<p class="title">${escapeHtml(c.name)}</p><p class="sub">${escapeHtml(c.external_ref)}</p>`;
+        item.innerHTML = `
+          <p class="title">${escapeHtml(c.name)}</p>
+          <p class="sub">${escapeHtml(c.external_ref)}</p>
+          <div class="field" style="margin-top:8px;">
+            <label>Email</label>
+            <input type="email" value="${escapeHtml(c.contact_email || '')}" data-client-email="${c.id}" placeholder="contact@exemple.com">
+          </div>
+          <div class="field">
+            <label>Téléphone</label>
+            <input type="tel" value="${escapeHtml(c.contact_phone || '')}" data-client-phone="${c.id}" placeholder="+33 6 12 34 56 78">
+          </div>
+          <div class="field">
+            <label>Site web</label>
+            <input type="url" value="${escapeHtml(c.website || '')}" data-client-website="${c.id}" placeholder="https://exemple.com">
+          </div>
+          <button type="button" data-save-client="${c.id}" style="margin-top:4px;">Enregistrer les coordonnées</button>`;
         box.appendChild(item);
+      });
+      box.querySelectorAll('[data-save-client]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const clientId = btn.getAttribute('data-save-client');
+          const client_contact_email = box.querySelector(`[data-client-email="${clientId}"]`).value.trim();
+          const client_contact_phone = box.querySelector(`[data-client-phone="${clientId}"]`).value.trim();
+          const client_website = box.querySelector(`[data-client-website="${clientId}"]`).value.trim();
+          btn.disabled = true; btn.textContent = '...';
+          try{
+            await adminFetch('update_client', { target_client_id: clientId, client_contact_email, client_contact_phone, client_website });
+            btn.textContent = 'Enregistré ✓';
+          }catch(e){
+            btn.textContent = 'Erreur';
+          }
+          setTimeout(() => { btn.disabled = false; btn.textContent = 'Enregistrer les coordonnées'; }, 1500);
+        });
       });
     }catch(e){
       box.innerHTML = `<p class="admin-empty">Erreur : ${escapeHtml(e.message)}</p>`;
@@ -2382,10 +2425,16 @@
   el('createClientForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const new_client_name = el('newClientName').value.trim();
+    const client_contact_email = el('newClientEmail').value.trim();
+    const client_contact_phone = el('newClientPhone').value.trim();
+    const client_website = el('newClientWebsite').value.trim();
     if (!new_client_name) return;
     try{
-      await adminFetch('create_client', { new_client_name, employee_id: state.employee.id });
+      await adminFetch('create_client', { new_client_name, client_contact_email, client_contact_phone, client_website, employee_id: state.employee.id });
       el('newClientName').value = '';
+      el('newClientEmail').value = '';
+      el('newClientPhone').value = '';
+      el('newClientWebsite').value = '';
       loadClientsList();
     }catch(err){
       customAlert('Erreur : ' + err.message);
