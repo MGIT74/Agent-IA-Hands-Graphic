@@ -503,6 +503,9 @@
     <button type="button" id="scheduledBtn" class="new-chat-btn">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>Programmé
     </button>
+    <button type="button" id="clientsBtn" class="new-chat-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>Clients
+    </button>
 
     <p class="agents-label">Agents disponibles</p>
     <div class="agent-list" id="agentList"></div>
@@ -818,6 +821,51 @@
         </div>
       </div>
     </form>
+  </div>
+</div>
+
+<div class="settings-page" id="clientsPage" style="display:none;">
+  <div class="settings-header">
+    <button type="button" id="backFromClients" class="btn-ghost">← Retour</button>
+    <h1>Clients</h1>
+    <span></span>
+  </div>
+  <div class="settings-body">
+    <div id="clientsNotAdmin" style="display:none;">
+      <section class="settings-section">
+        <p class="hint">Cette section est réservée aux administrateurs.</p>
+      </section>
+    </div>
+    <div id="clientsAdminContent" style="display:none;">
+      <section class="settings-section">
+        <h2>Créer un client</h2>
+        <form id="createClientForm">
+          <div class="field">
+            <label>Nom du client</label>
+            <input type="text" id="newClientName" placeholder="Ex: Restaurant Gourmet" required>
+          </div>
+          <button class="btn-primary" type="submit">+ Créer le client</button>
+        </form>
+      </section>
+
+      <section class="settings-section">
+        <h2>Clients existants</h2>
+        <div id="clientsList"><p class="admin-empty">Chargement…</p></div>
+      </section>
+
+      <section class="settings-section">
+        <h2>Documents pour le RAG</h2>
+        <p class="hint">Ajoute un PDF ou un fichier texte (présentation de l'entreprise, FAQ, catalogue...) que tous les agents pourront utiliser pour répondre. Réservé aux administrateurs.</p>
+        <form id="ingestDocForm">
+          <div class="field">
+            <label>Fichier (PDF ou texte)</label>
+            <input type="file" id="docFileInput" accept=".pdf,.txt,.csv,.md" required>
+          </div>
+          <button class="btn-primary" type="submit" id="ingestDocBtn">+ Ajouter au RAG</button>
+        </form>
+        <div id="ingestDocResult" style="margin-top:10px;"></div>
+      </section>
+    </div>
   </div>
 </div>
 
@@ -2172,6 +2220,86 @@
   }
 
   el('scheduledBtn').addEventListener('click', openScheduledPage);
+
+  // ---- page Clients (admin uniquement) ----
+  async function openClientsPage(){
+    el('app').style.display = 'none';
+    el('clientsPage').style.display = 'block';
+    const isAdmin = state.employee && state.employee.role === 'admin';
+    el('clientsNotAdmin').style.display = isAdmin ? 'none' : 'block';
+    el('clientsAdminContent').style.display = isAdmin ? 'block' : 'none';
+    if (isAdmin) loadClientsList();
+  }
+  function closeClientsPage(){
+    el('clientsPage').style.display = 'none';
+    el('app').style.display = 'flex';
+  }
+
+  async function loadClientsList(){
+    const box = el('clientsList');
+    box.innerHTML = '<p class="admin-empty">Chargement…</p>';
+    try{
+      const data = await adminFetch('list_clients');
+      const clients = data.clients || [];
+      if (clients.length === 0){ box.innerHTML = '<p class="admin-empty">Aucun client pour le moment.</p>'; return; }
+      box.innerHTML = '';
+      clients.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'admin-item';
+        item.innerHTML = `<p class="title">${escapeHtml(c.name)}</p><p class="sub">${escapeHtml(c.external_ref)}</p>`;
+        box.appendChild(item);
+      });
+    }catch(e){
+      box.innerHTML = `<p class="admin-empty">Erreur : ${escapeHtml(e.message)}</p>`;
+    }
+  }
+
+  el('clientsBtn').addEventListener('click', openClientsPage);
+  el('backFromClients').addEventListener('click', closeClientsPage);
+
+  el('createClientForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const new_client_name = el('newClientName').value.trim();
+    if (!new_client_name) return;
+    try{
+      await adminFetch('create_client', { new_client_name, employee_id: state.employee.id });
+      el('newClientName').value = '';
+      loadClientsList();
+    }catch(err){
+      customAlert('Erreur : ' + err.message);
+    }
+  });
+
+  el('ingestDocForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const file = el('docFileInput').files && el('docFileInput').files[0];
+    if (!file) return;
+    const btn = el('ingestDocBtn');
+    const resultBox = el('ingestDocResult');
+    btn.disabled = true;
+    btn.textContent = 'Ajout en cours…';
+    resultBox.innerHTML = '';
+    try{
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1] || '');
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const data = await adminFetch('ingest_document', {
+        doc_file_name: file.name,
+        doc_file_type: file.type || 'text/plain',
+        doc_file_base64: base64,
+        employee_id: state.employee.id
+      });
+      resultBox.innerHTML = `<p class="hint">✓ Document ajouté (${data.chunks || 0} passage${(data.chunks||0) > 1 ? 's' : ''} indexé${(data.chunks||0) > 1 ? 's' : ''}).</p>`;
+      el('docFileInput').value = '';
+    }catch(err){
+      resultBox.innerHTML = `<p class="hint" style="color:var(--danger);">Erreur : ${escapeHtml(err.message)}</p>`;
+    }
+    btn.disabled = false;
+    btn.textContent = '+ Ajouter au RAG';
+  });
   el('backFromScheduled').addEventListener('click', closeScheduledPage);
 
   el('createScheduleForm').addEventListener('submit', async (e) => {
