@@ -601,6 +601,7 @@
       <div class="empty-state" id="emptyState">
         <div class="dashboard" id="dashboardContent"></div>
       </div>
+      <div id="messagesContainer"></div>
     </div>
 
     <div class="attachment-preview" id="attachmentPreview" style="display:none;"></div>
@@ -1874,7 +1875,7 @@
 
   function renderMessages(){
     emptyState.style.display = state.currentAgentId ? 'none' : 'flex';
-    chatScroll.innerHTML = '';
+    el('messagesContainer').innerHTML = '';
     if (!state.currentAgentId) return;
 
     const session = getSession(state.currentAgentId);
@@ -1947,7 +1948,7 @@
       openArtifact(artifact.html, 'site.html'); // ouverture automatique
     }
 
-    chatScroll.appendChild(wrap);
+    el('messagesContainer').appendChild(wrap);
     chatScroll.scrollTop = chatScroll.scrollHeight;
     return wrap;
   }
@@ -1958,7 +1959,7 @@
     wrap.id = 'typingIndicator';
     wrap.innerHTML = `<span class="role">${escapeHtml((state.agents.find(a=>a.id===state.currentAgentId)||{}).name || '')}</span>
       <div class="bubble typing"><span></span><span></span><span></span></div>`;
-    chatScroll.appendChild(wrap);
+    el('messagesContainer').appendChild(wrap);
     chatScroll.scrollTop = chatScroll.scrollHeight;
   }
   function hideTyping(){
