@@ -333,9 +333,15 @@
 
   .agent-cards-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:14px; }
   .agent-card{ background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px; }
-  .agent-card-head{ display:flex; align-items:center; gap:14px; margin-bottom:12px; }
-  .agent-card-head .agent-avatar{ width:72px; height:72px; border-radius:16px; font-size:28px; }
+  .agent-card-head{ position:relative; margin:-16px -16px 14px -16px; height:190px; border-radius:14px 14px 0 0; overflow:hidden; background:var(--panel-raised); }
+  .agent-card-head .agent-avatar{ width:100%; height:100%; border-radius:0; font-size:52px; }
   .agent-avatar{ width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+  .agent-card-status-badge{
+    position:absolute; top:10px; right:10px; background:rgba(255,255,255,0.92); backdrop-filter:blur(4px);
+    padding:4px 10px; border-radius:20px; font-size:10.5px; display:flex; align-items:center; gap:5px;
+    color:var(--text); box-shadow:0 1px 4px rgba(0,0,0,0.1);
+  }
+  .agent-card-status-badge .dot{ width:6px; height:6px; border-radius:50%; flex-shrink:0; }
 
   .agent-avatar-row{ display:flex; align-items:center; gap:10px; margin-top:8px; }
   .agent-avatar-preview{
@@ -1668,11 +1674,10 @@
         card.innerHTML = `
           <div class="agent-card-head">
             ${renderAgentAvatarHtml(agent)}
-            <div>
-              <div class="agent-card-name">${escapeHtml(agent.name)}</div>
-            </div>
+            <span class="agent-card-status-badge"><span class="dot" style="background:var(--ok)"></span>En ligne</span>
           </div>
-          <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px; line-height:1.4;">${escapeHtml(agent.desc || '')}</p>
+          <div class="agent-card-name">${escapeHtml(agent.name)}</div>
+          <p style="font-size:12px; color:var(--text-muted); margin:4px 0 12px; line-height:1.4;">${escapeHtml(agent.desc || '')}</p>
           <button class="discuter-btn" type="button">${ICON_CHAT}Discuter</button>`;
         card.querySelector('.discuter-btn').addEventListener('click', () => selectAgent(agent.id));
         grid.appendChild(card);
@@ -1713,11 +1718,9 @@
         card.innerHTML = `
           <div class="agent-card-head">
             ${renderAgentAvatarHtml({ id: agent.agent_id, name: agent.name, avatar_url: agent.avatar_url })}
-            <div>
-              <div class="agent-card-name">${escapeHtml(agent.name)}</div>
-              <div class="agent-card-status"><span class="dot" style="background:var(--ok)"></span>En ligne</div>
-            </div>
+            <span class="agent-card-status-badge"><span class="dot" style="background:var(--ok)"></span>En ligne</span>
           </div>
+          <div class="agent-card-name">${escapeHtml(agent.name)}</div>
           <div class="agent-metrics-row">
             <div class="agent-metric"><div class="val">${agent.tasks_total}</div><div class="lbl">Tâches</div></div>
             <div class="agent-metric"><div class="val">${agent.quality_pct !== null ? agent.quality_pct + '%' : '—'}</div><div class="lbl">Qualité</div></div>
