@@ -670,6 +670,7 @@
       <button type="button" class="settings-nav-btn" data-settings-tab="employees">Employés</button>
       <button type="button" class="settings-nav-btn" data-settings-tab="agents">Agents</button>
       <button type="button" class="settings-nav-btn" data-settings-tab="skills">Skills</button>
+      <button type="button" class="settings-nav-btn" data-settings-tab="rag">RAG</button>
     </nav>
     <nav class="settings-nav" id="settingsNavEmployee" style="display:none;">
       <button type="button" class="settings-nav-btn active" data-settings-tab="profile">Mon profil</button>
@@ -794,6 +795,22 @@
           <button type="submit">Assigner ce skill</button>
         </form>
         <div class="admin-list" id="skillsAdminList"><p class="admin-empty">Chargement…</p></div>
+      </section>
+
+      <section class="settings-section settings-tab-panel" id="tab-rag" style="display:none;">
+        <h2>RAG — Documents de l'entreprise</h2>
+        <p class="hint">Ajoute un PDF ou un fichier texte (présentation, FAQ, catalogue...) que tous les agents pourront utiliser pour répondre.</p>
+        <form id="ingestDocFormSettings">
+          <div class="field">
+            <label>Fichier (PDF ou texte)</label>
+            <input type="file" id="docFileInputSettings" accept=".pdf,.txt,.csv,.md" required>
+          </div>
+          <button class="btn-primary" type="submit" id="ingestDocBtnSettings">+ Ajouter au RAG</button>
+        </form>
+        <div id="ingestDocResultSettings" style="margin-top:10px;"></div>
+
+        <p class="sub" style="margin-top:22px; text-transform:uppercase; letter-spacing:0.3px; font-size:10.5px;">Documents déjà ajoutés</p>
+        <div class="admin-list" id="ragDocumentsList"><p class="admin-empty">Chargement…</p></div>
       </section>
     </div>
   </div>
@@ -1402,6 +1419,74 @@
       });
     }
   }
+
+  async function loadRagDocuments(){
+    const list = el('ragDocumentsList');
+    list.innerHTML = '<p class="admin-empty">Chargement…</p>';
+    try{
+      const data = await adminFetch('list_rag_documents', { employee_id: state.employee.id });
+      const docs = data.documents || [];
+      if (docs.length === 0){ list.innerHTML = '<p class="admin-empty">Aucun document ajouté pour le moment.</p>'; return; }
+      list.innerHTML = '';
+      docs.forEach(doc => {
+        const item = document.createElement('div');
+        item.className = 'admin-item';
+        item.innerHTML = `
+          <div class="row1">
+            <p class="title">${escapeHtml(doc.source)}</p>
+            <button type="button" class="admin-delete-btn" data-delete-doc="${escapeHtml(doc.source)}" title="Supprimer">${ICON_TRASH}</button>
+          </div>
+          <p class="sub">${doc.chunks} passage${doc.chunks > 1 ? 's' : ''} indexé${doc.chunks > 1 ? 's' : ''}</p>
+          <p class="sub" style="margin-top:4px; font-style:italic;">${escapeHtml(doc.preview)}…</p>`;
+        list.appendChild(item);
+      });
+      list.querySelectorAll('[data-delete-doc]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!(await customConfirm("Supprimer ce document du RAG ? Tous ses passages seront retirés."))) return;
+          try{
+            await adminFetch('delete_rag_document', { doc_file_name: btn.getAttribute('data-delete-doc'), employee_id: state.employee.id });
+            loadRagDocuments();
+          }catch(err){
+            customAlert('Erreur : ' + err.message);
+          }
+        });
+      });
+    }catch(e){
+      list.innerHTML = `<p class="admin-empty">Erreur : ${escapeHtml(e.message)}</p>`;
+    }
+  }
+
+  el('ingestDocFormSettings').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const file = el('docFileInputSettings').files && el('docFileInputSettings').files[0];
+    if (!file) return;
+    const btn = el('ingestDocBtnSettings');
+    const resultBox = el('ingestDocResultSettings');
+    btn.disabled = true;
+    btn.textContent = 'Ajout en cours…';
+    resultBox.innerHTML = '';
+    try{
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1] || '');
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const data = await adminFetch('ingest_document', {
+        doc_file_name: file.name,
+        doc_file_type: file.type || 'text/plain',
+        doc_file_base64: base64,
+        employee_id: state.employee.id
+      });
+      resultBox.innerHTML = `<p class="hint">✓ Document ajouté (${data.chunks || 0} passage${(data.chunks||0) > 1 ? 's' : ''} indexé${(data.chunks||0) > 1 ? 's' : ''}).</p>`;
+      el('docFileInputSettings').value = '';
+      loadRagDocuments();
+    }catch(err){
+      resultBox.innerHTML = `<p class="hint" style="color:var(--danger);">Erreur : ${escapeHtml(err.message)}</p>`;
+    }
+    btn.disabled = false;
+    btn.textContent = '+ Ajouter au RAG';
+  });
 
   async function loadSkillsAdmin(){
     const list = el('skillsAdminList');
@@ -2226,6 +2311,7 @@
       loadEmployees();
       loadAgentsAdmin();
       loadSkillsAdmin();
+      loadRagDocuments();
     }else{
       showSettingsTab('profile');
       if (state.employee){
