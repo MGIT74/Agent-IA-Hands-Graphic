@@ -333,7 +333,8 @@
 
   .agent-cards-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:14px; }
   .agent-card{ background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px; }
-  .agent-card-head{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .agent-card-head{ display:flex; align-items:center; gap:14px; margin-bottom:12px; }
+  .agent-card-head .agent-avatar{ width:72px; height:72px; border-radius:16px; font-size:28px; }
   .agent-avatar{ width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
 
   .agent-avatar-row{ display:flex; align-items:center; gap:10px; margin-top:8px; }
@@ -556,6 +557,9 @@
       <select id="clientSelect"></select>
     </div>
 
+    <button type="button" id="dashboardBtn" class="new-chat-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; margin-right:4px;"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>Dashboard
+    </button>
     <button type="button" id="newChatSidebarBtn" class="new-chat-btn">
       <span class="plus">+</span> Nouvelle discussion
     </button>
@@ -2387,6 +2391,22 @@
     state.employee = null;
     location.reload();
   }
+
+  function showDashboard(){
+    state.currentAgentId = null;
+    el('agentTitle').textContent = 'Sélectionne un agent';
+    el('agentCtx').textContent = '—';
+    el('sessionTag').textContent = 'session: —';
+    messageInput.disabled = true;
+    sendBtn.disabled = true;
+    el('attachBtn').disabled = true;
+    el('conversationsLabel').style.display = 'none';
+    el('conversationList').style.display = 'none';
+    renderAgentList();
+    renderDashboard();
+    renderMessages();
+  }
+  el('dashboardBtn').addEventListener('click', showDashboard);
 
   el('newChatSidebarBtn').addEventListener('click', async () => {
     if (!state.currentAgentId){ newConversation(); return; }
