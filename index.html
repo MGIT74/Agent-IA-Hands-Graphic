@@ -335,6 +335,28 @@
   .agent-card{ background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px; }
   .agent-card-head{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
   .agent-avatar{ width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+
+  .agent-avatar-row{ display:flex; align-items:center; gap:10px; margin-top:8px; }
+  .agent-avatar-preview{
+    width:44px; height:44px; border-radius:10px; object-fit:cover; flex-shrink:0;
+    border:1px solid var(--border);
+  }
+  .agent-avatar-preview-empty{
+    display:flex; align-items:center; justify-content:center; background:var(--panel-raised);
+    color:var(--text-muted); font-size:15px;
+  }
+  .agent-avatar-actions{ display:flex; align-items:center; gap:8px; }
+  .avatar-preset-btn{
+    background:none; border:1px solid var(--border); border-radius:8px; padding:2px;
+    cursor:pointer; line-height:0;
+  }
+  .avatar-preset-btn:hover{ border-color:var(--accent); }
+  .avatar-preset-btn img{ width:30px; height:30px; border-radius:6px; object-fit:cover; display:block; }
+  .avatar-upload-btn{
+    font-size:11.5px; color:var(--text-muted); border:1px solid var(--border); border-radius:8px;
+    padding:6px 10px; cursor:pointer;
+  }
+  .avatar-upload-btn:hover{ border-color:var(--accent); color:var(--text); }
   .agent-card-name{ font-weight:600; font-size:13.5px; color:var(--text); line-height:1.3; }
   .agent-card-status{ font-size:10.5px; display:flex; align-items:center; gap:5px; color:var(--text-muted); margin-top:2px; }
   .agent-card-status .dot{ width:6px; height:6px; border-radius:50%; }
@@ -1191,12 +1213,27 @@
         const item = document.createElement('div');
         item.className = 'admin-item';
         const deleteBtn = isAdmin ? `<button type="button" class="admin-delete-btn" data-delete-agent="${agent.id}" title="Supprimer">${ICON_TRASH}</button>` : '';
+        const avatarPreviewHtml = agent.avatar_url
+          ? `<img src="${escapeHtml(agent.avatar_url)}" class="agent-avatar-preview">`
+          : `<div class="agent-avatar-preview agent-avatar-preview-empty">?</div>`;
         item.innerHTML = `
           <div class="row1">
             <p class="title">${escapeHtml(agent.name)}</p>
             ${deleteBtn}
           </div>
           <p class="sub">${escapeHtml(agent.external_ref)} ${agent.active ? '' : '· inactif'}</p>
+          <div class="agent-avatar-row" data-avatar-preview="${agent.id}">
+            ${avatarPreviewHtml}
+            <div class="agent-avatar-actions">
+              <button type="button" class="avatar-preset-btn" data-use-preset="${agent.id}" title="Utiliser le modèle fourni">
+                <img src="avatars/default-1.jpg">
+              </button>
+              <label class="avatar-upload-btn">
+                Choisir une image…
+                <input type="file" accept="image/*" data-avatar-upload="${agent.id}" style="display:none;">
+              </label>
+            </div>
+          </div>
           <div class="agent-rename">
             <input type="text" value="${escapeHtml(agent.name)}" data-agent-id="${agent.id}">
             <button type="button" data-rename-for="${agent.id}">Renommer</button>
@@ -1212,6 +1249,7 @@
           </div>`;
         list.appendChild(item);
         loadAgentModelsSelect(agent.id, list);
+        wireAgentAvatarControls(agent.id, list, loadAgentsAdmin);
       });
       list.querySelectorAll('[data-rename-for]').forEach(btn => {
         btn.addEventListener('click', async () => {
@@ -1293,6 +1331,43 @@
     }
   }
 
+  function wireAgentAvatarControls(agentId, container, onDone){
+    const presetBtn = container.querySelector(`[data-use-preset="${agentId}"]`);
+    if (presetBtn){
+      presetBtn.addEventListener('click', async () => {
+        try{
+          await adminFetch('update_agent_avatar', { agent_id: agentId, avatar_url: 'avatars/default-1.jpg', employee_id: state.employee.id });
+          if (onDone) onDone();
+        }catch(err){
+          customAlert('Erreur : ' + err.message);
+        }
+      });
+    }
+    const uploadInput = container.querySelector(`[data-avatar-upload="${agentId}"]`);
+    if (uploadInput){
+      uploadInput.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024){
+          await customAlert("Image trop volumineuse (max 2 Mo).");
+          return;
+        }
+        try{
+          const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          await adminFetch('update_agent_avatar', { agent_id: agentId, avatar_url: dataUrl, employee_id: state.employee.id });
+          if (onDone) onDone();
+        }catch(err){
+          customAlert('Erreur : ' + err.message);
+        }
+      });
+    }
+  }
+
   async function loadSkillsAdmin(){
     const list = el('skillsAdminList');
     const agentSelect = el('assignSkillAgentSelect');
@@ -1344,8 +1419,23 @@
         card.className = 'admin-item';
         card.style.marginBottom = '14px';
         const skillSelectId = 'skillSel_' + agent.id;
+        const avatarPreviewHtml = agent.avatar_url
+          ? `<img src="${escapeHtml(agent.avatar_url)}" class="agent-avatar-preview">`
+          : `<div class="agent-avatar-preview agent-avatar-preview-empty">?</div>`;
         card.innerHTML = `
           <p class="sub">${escapeHtml(agent.external_ref)}</p>
+          <div class="agent-avatar-row" data-avatar-preview="${agent.id}">
+            ${avatarPreviewHtml}
+            <div class="agent-avatar-actions">
+              <button type="button" class="avatar-preset-btn" data-use-preset="${agent.id}" title="Utiliser le modèle fourni">
+                <img src="avatars/default-1.jpg">
+              </button>
+              <label class="avatar-upload-btn">
+                Choisir une image…
+                <input type="file" accept="image/*" data-avatar-upload="${agent.id}" style="display:none;">
+              </label>
+            </div>
+          </div>
           <div class="agent-rename">
             <input type="text" value="${escapeHtml(agent.name)}" data-agent-name-input="${agent.id}">
             <button type="button" data-rename-agent="${agent.id}">Renommer</button>
@@ -1376,6 +1466,7 @@
         box.appendChild(card);
 
         loadAgentModelsSelect(agent.id, card);
+        wireAgentAvatarControls(agent.id, card, loadMyAgents);
         card.querySelector(`[data-set-model-for="${agent.id}"]`).addEventListener('click', async (e) => {
           const btn = e.currentTarget;
           const sel = card.querySelector(`select[data-model-select="${agent.id}"]`);
@@ -1526,7 +1617,7 @@
     }
     try{
       const data = await adminFetch('list_my_agents', { employee_id: state.employee.id });
-      state.agents = (data.agents || []).map(a => ({ id: a.external_ref, name: a.name, desc: a.description }));
+      state.agents = (data.agents || []).map(a => ({ id: a.external_ref, name: a.name, desc: a.description, avatar_url: a.avatar_url }));
     }catch(e){
       state.agents = [];
     }
@@ -1542,6 +1633,13 @@
     const color = AVATAR_COLORS[hash % AVATAR_COLORS.length];
     const initial = (name || '?').trim().charAt(0).toUpperCase();
     return { color, initial };
+  }
+  function renderAgentAvatarHtml(agent){
+    if (agent.avatar_url){
+      return `<img src="${escapeHtml(agent.avatar_url)}" class="agent-avatar" style="object-fit:cover;">`;
+    }
+    const av = avatarFor(agent.id || agent.agent_id || '?', agent.name);
+    return `<div class="agent-avatar" style="background:${av.color}; color:#fff; font-weight:700;">${av.initial}</div>`;
   }
 
   async function renderDashboard(){
@@ -1560,12 +1658,11 @@
         <div class="agent-cards-grid" id="clientAgentCards"></div>`;
       const grid = el('clientAgentCards');
       state.agents.forEach(agent => {
-        const av = avatarFor(agent.id, agent.name);
         const card = document.createElement('div');
         card.className = 'agent-card';
         card.innerHTML = `
           <div class="agent-card-head">
-            <div class="agent-avatar" style="background:${av.color}; color:#fff; font-weight:700;">${av.initial}</div>
+            ${renderAgentAvatarHtml(agent)}
             <div>
               <div class="agent-card-name">${escapeHtml(agent.name)}</div>
             </div>
@@ -1606,12 +1703,11 @@
 
       const grid = el('agencyAgentCards');
       stats.forEach(agent => {
-        const av = avatarFor(agent.agent_id);
         const card = document.createElement('div');
         card.className = 'agent-card';
         card.innerHTML = `
           <div class="agent-card-head">
-            <div class="agent-avatar" style="background:${av.color}; color:#fff; font-weight:700;">${av.initial}</div>
+            ${renderAgentAvatarHtml({ id: agent.agent_id, name: agent.name, avatar_url: agent.avatar_url })}
             <div>
               <div class="agent-card-name">${escapeHtml(agent.name)}</div>
               <div class="agent-card-status"><span class="dot" style="background:var(--ok)"></span>En ligne</div>
