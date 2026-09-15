@@ -1755,6 +1755,7 @@
     const agentDisplayName = (agent && agent.name) || agentId;
     renderAgentList();
     renderDashboard();
+    setRoute('/chat/' + encodeURIComponent(agentId));
 
     el('agentTitle').textContent = agentDisplayName;
     el('agentCtx').textContent = state.config.clientName + ' · ' + state.config.clientId;
@@ -2141,6 +2142,7 @@
     const isAdmin = state.employee && state.employee.role === 'admin';
     el('app').style.display = 'none';
     el('settingsPage').style.display = 'block';
+    setRoute('/settings');
 
     el('settingsNavAdmin').style.display = isAdmin ? 'flex' : 'none';
     el('settingsNavEmployee').style.display = isAdmin ? 'none' : 'flex';
@@ -2166,6 +2168,7 @@
   function closeSettingsPage(){
     el('settingsPage').style.display = 'none';
     el('app').style.display = 'flex';
+    setRoute('/');
   }
 
   el('settingsBtn').addEventListener('click', openSettingsPage);
@@ -2350,14 +2353,15 @@
     try{ localStorage.removeItem(AUTH_STORAGE_KEY); }catch(e){ /* ignore */ }
   }
 
-  function startApp(){
+  async function startApp(){
     el('loginScreen').style.display = 'none';
     el('app').style.display = 'flex';
     state.mode = 'agency';
     state.config.clientId = 'internal_agency';
     state.config.clientName = 'Usage interne';
     renderHeader();
-    loadAgentsForClient();
+    await loadAgentsForClient();
+    restoreFromHash();
   }
 
   el('loginForm').addEventListener('submit', async (e) => {
@@ -2396,6 +2400,31 @@
     location.reload();
   }
 
+  // ---- routage simple par hash d'URL (survit au rafraîchissement) ----
+  function setRoute(path){
+    const target = '#' + path;
+    if (location.hash !== target) history.pushState(null, '', target);
+  }
+  function restoreFromHash(){
+    const path = location.hash.replace(/^#\/?/, '');
+    if (path.startsWith('settings')){ openSettingsPage(); return; }
+    if (path.startsWith('scheduled')){ openScheduledPage(); return; }
+    if (path.startsWith('clients')){ openClientsPage(); return; }
+    if (path.startsWith('chat/')){
+      const agentId = decodeURIComponent(path.slice('chat/'.length));
+      if (state.agents.find(a => a.id === agentId)){ selectAgent(agentId); return; }
+    }
+    showDashboard();
+  }
+  window.addEventListener('popstate', () => {
+    // ferme les pages plein écran avant de restaurer, pour éviter les superpositions
+    el('settingsPage').style.display = 'none';
+    el('scheduledPage').style.display = 'none';
+    el('clientsPage').style.display = 'none';
+    el('app').style.display = 'flex';
+    restoreFromHash();
+  });
+
   function showDashboard(){
     state.currentAgentId = null;
     el('agentTitle').textContent = 'Sélectionne un agent';
@@ -2409,6 +2438,7 @@
     renderAgentList();
     renderDashboard();
     renderMessages();
+    setRoute('/');
   }
   el('dashboardBtn').addEventListener('click', showDashboard);
 
@@ -2465,6 +2495,7 @@
   async function openScheduledPage(){
     el('app').style.display = 'none';
     el('scheduledPage').style.display = 'block';
+    setRoute('/scheduled');
     renderScheduleTemplates();
     populateTaskHourSelect();
     try{
@@ -2478,6 +2509,7 @@
   function closeScheduledPage(){
     el('scheduledPage').style.display = 'none';
     el('app').style.display = 'flex';
+    setRoute('/');
   }
 
   async function loadScheduledTasks(){
@@ -2540,6 +2572,7 @@
   async function openClientsPage(){
     el('app').style.display = 'none';
     el('clientsPage').style.display = 'block';
+    setRoute('/clients');
     const isAdmin = state.employee && state.employee.role === 'admin';
     el('clientsNotAdmin').style.display = isAdmin ? 'none' : 'block';
     el('clientsAdminContent').style.display = isAdmin ? 'block' : 'none';
@@ -2549,6 +2582,7 @@
   function closeClientsPage(){
     el('clientsPage').style.display = 'none';
     el('app').style.display = 'flex';
+    setRoute('/');
   }
 
   async function loadClientsList(){
